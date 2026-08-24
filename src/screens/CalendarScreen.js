@@ -24,32 +24,49 @@ LocaleConfig.locales['en'] = {
 
 export default function CalendarScreen() {
   const { entries, toggleStatus } = useJournal();
-  const { theme, language } = useSettings();
+  const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState(getFormattedDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(getFormattedDate(new Date(), timezone));
 
   useEffect(() => {
     LocaleConfig.defaultLocale = language;
   }, [language]);
 
-  // Generar las marcas en el calendario para los días que tienen tareas
   const markedDates = useMemo(() => {
     const marks = {};
+    const today = getFormattedDate(new Date(), timezone);
     
-    // Poner un puntito en los días con tareas
+    // 1. Poner el texto en azul para los días que tienen tareas
     entries.forEach(entry => {
       const targetDate = (entry.status === 'completed' && entry.completedAt) ? entry.completedAt : entry.date;
       if (targetDate) {
-        marks[targetDate] = { marked: true, dotColor: theme.primary };
+        marks[targetDate] = { textColor: theme.primary };
       }
     });
 
-    // Marcar el día seleccionado actualmente
-    marks[selectedDate] = {
-      ...marks[selectedDate],
-      selected: true,
-      selectedColor: theme.text
-    };
+    // 2. Poner un puntito al día actual (HOY) siempre
+    if (marks[today]) {
+        marks[today].marked = true;
+        marks[today].dotColor = theme.text;
+    } else {
+        marks[today] = { marked: true, dotColor: theme.text };
+    }
+
+    // 3. Marcar el día seleccionado actualmente (fondo invertido)
+    if (marks[selectedDate]) {
+        marks[selectedDate].selected = true;
+        marks[selectedDate].selectedColor = theme.text;
+        marks[selectedDate].textColor = theme.cardBackground; 
+        if (marks[selectedDate].marked) {
+            marks[selectedDate].dotColor = theme.cardBackground;
+        }
+    } else {
+        marks[selectedDate] = {
+            selected: true,
+            selectedColor: theme.text,
+            textColor: theme.cardBackground
+        };
+    }
 
     return marks;
   }, [entries, selectedDate, theme]);
@@ -65,7 +82,7 @@ export default function CalendarScreen() {
   const renderItem = ({ item }) => {
     const isCompleted = item.status === 'completed';
     // Comprobar si se programó explícitamente para otro día distinto al de su creación
-    const creationDate = getFormattedDate(new Date(parseInt(item.id)));
+    const creationDate = getFormattedDate(new Date(parseInt(item.id)), timezone);
     const isScheduled = item.date !== creationDate;
 
     return (
@@ -107,7 +124,7 @@ export default function CalendarScreen() {
           textSectionTitleColor: theme.textSecondary,
           selectedDayBackgroundColor: theme.text,
           selectedDayTextColor: theme.cardBackground,
-          todayTextColor: theme.primary,
+          todayTextColor: theme.text,
           dayTextColor: theme.text,
           textDisabledColor: theme.textCompleted,
           dotColor: theme.primary,

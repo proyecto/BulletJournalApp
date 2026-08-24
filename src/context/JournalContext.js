@@ -1,8 +1,26 @@
 import React, { createContext, useState, useContext } from 'react';
 
 // Formato utilitario para devolver 'YYYY-MM-DD'
-export const getFormattedDate = (date) => {
-  return date.toISOString().split('T')[0];
+export const getFormattedDate = (date, timezone = 'system') => {
+  if (!timezone || timezone === 'system') {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+    return formatter.format(new Date(date));
+  } catch (e) {
+    // Fallback if Intl or the specific timezone is not supported
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 };
 
 const JournalContext = createContext();

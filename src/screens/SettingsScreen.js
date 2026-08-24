@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 
 export default function SettingsScreen() {
-  const { theme, themePreference, setThemePreference, language, setLanguage } = useSettings();
+  const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone } = useSettings();
   const insets = useSafeAreaInsets();
 
   const renderSectionHeader = (title) => (
@@ -40,6 +40,12 @@ export default function SettingsScreen() {
           {renderOption(language === 'es' ? 'Automático (Sistema)' : 'System Default', themePreference === 'system', () => setThemePreference('system'), 'phone-portrait-outline')}
           {renderOption(language === 'es' ? 'Modo Claro' : 'Light Mode', themePreference === 'light', () => setThemePreference('light'), 'sunny-outline')}
           {renderOption(language === 'es' ? 'Modo Oscuro' : 'Dark Mode', themePreference === 'dark', () => setThemePreference('dark'), 'moon-outline')}
+        </View>
+
+        {renderSectionHeader(language === 'es' ? 'ZONA HORARIA' : 'TIMEZONE')}
+        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+          {renderOption(language === 'es' ? 'Automático (Local)' : 'Local (System)', timezone === 'system', () => setTimezone('system'), 'time-outline')}
+          {renderOption('Europa / Madrid', timezone === 'Europe/Madrid', () => setTimezone('Europe/Madrid'), 'globe-outline')}
         </View>
 
         {renderSectionHeader(language === 'es' ? 'IDIOMA' : 'LANGUAGE')}

@@ -17,7 +17,7 @@ import { useSettings } from '../context/SettingsContext';
 
 export default function DailyLogScreen() {
   const { entries, addEntry, toggleStatus } = useJournal();
-  const { theme, language } = useSettings();
+  const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
   
   const [inputText, setInputText] = useState('');
@@ -26,7 +26,7 @@ export default function DailyLogScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [currentLogDate, setCurrentLogDate] = useState(new Date());
-  const currentLogDateStr = getFormattedDate(currentLogDate);
+  const currentLogDateStr = getFormattedDate(currentLogDate, timezone);
 
   const navigateDay = (direction) => {
     const newDate = new Date(currentLogDate);
@@ -54,7 +54,7 @@ export default function DailyLogScreen() {
         text: inputText.trim(),
         type: selectedType,
         status: 'open',
-        date: getFormattedDate(selectedDate),
+        date: getFormattedDate(selectedDate, timezone),
         completedAt: null
       });
       setInputText('');
@@ -118,7 +118,7 @@ export default function DailyLogScreen() {
     );
   };
 
-  const isViewingToday = currentLogDateStr === getFormattedDate(new Date());
+  const isViewingToday = currentLogDateStr === getFormattedDate(new Date(), timezone);
 
   return (
     <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
@@ -180,7 +180,7 @@ export default function DailyLogScreen() {
               <Ionicons 
                 name="calendar" 
                 size={22} 
-                color={getFormattedDate(selectedDate) !== getFormattedDate(new Date()) ? theme.primary : theme.textSecondary} 
+                color={getFormattedDate(selectedDate, timezone) !== getFormattedDate(new Date(), timezone) ? theme.primary : theme.textSecondary} 
               />
             </TouchableOpacity>
 
