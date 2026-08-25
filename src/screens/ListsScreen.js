@@ -153,9 +153,9 @@ export default function ListsScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10 },
-  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: 16, marginTop: 4 },
+  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
+  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
+  subtitle: { fontSize: 16, marginTop: 4, textAlign: 'center' },
   listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, flexGrow: 1 },
   card: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 10, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
   iconContainer: { width: 32, alignItems: 'center', justifyContent: 'center', marginRight: 12 },

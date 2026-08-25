@@ -144,6 +144,7 @@ if (weight === '700' || weight === 'bold') finalFontFamily = 'DancingScript_700B
     else if (weight === '600') finalFontFamily = 'DancingScript_600SemiBold';
     else if (weight === '500') finalFontFamily = 'DancingScript_500Medium';
     else finalFontFamily = 'DancingScript_400Regular';
+  }
   // If fontFamily === 'system', finalFontFamily remains undefined, forcing native system font.
 
   let cleanedStyle = { ...StyleSheet.flatten(style) };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -138,9 +138,9 @@ export default function SettingsScreen() {
                     setFontModalVisible(false);
                   }}
                 >
-                  <Text style={[styles.modalOptionText, { color: theme.text }, item.fontStyle]}>
+                  <RNText style={[styles.modalOptionText, { color: theme.text }, item.fontStyle]}>
                     {item.label}
-                  </Text>
+                  </RNText>
                   {fontFamily === item.id && (
                     <Ionicons name="checkmark" size={20} color={theme.primary} />
                   )}
@@ -156,8 +156,8 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10 },
-  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
+  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
   content: { paddingHorizontal: 20, paddingTop: 10, flex: 1 },
   sectionHeader: { fontSize: 13, fontWeight: '600', marginTop: 24, marginBottom: 8, marginLeft: 12, letterSpacing: 0.5 },
   cardGroup: { borderRadius: 12, overflow: 'hidden', borderWidth: 1 },

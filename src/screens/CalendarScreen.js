@@ -113,6 +113,11 @@ export default function CalendarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.text }]}>
+          {language === 'es' ? 'Registro Futuro' : 'Future Log'}
+        </Text>
+      </View>
       <Calendar
         current={selectedDate}
         onDayPress={day => {
@@ -171,6 +176,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
+  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
   calendar: {
     marginBottom: 10,
     borderBottomWidth: 1,
