@@ -42,6 +42,15 @@ export function SettingsProvider({ children }) {
   const [timezone, setTimezone] = useState('Europe/Madrid'); // 'system' | 'Europe/Madrid' | ...
   const [fontFamily, setFontFamily] = useState('system'); // 'system' | 'inter' | 'lora' | 'jetbrains'
 
+  const [typographyConfig, setTypographyConfig] = useState({
+    h1: { fontFamily: null, fontSize: 30, fontWeight: '800' },
+    h2: { fontFamily: null, fontSize: 24, fontWeight: '800' },
+    h3: { fontFamily: null, fontSize: 20, fontWeight: '700' },
+    body: { fontFamily: null, fontSize: 16, fontWeight: '500' },
+    caption: { fontFamily: null, fontSize: 13, fontWeight: '600' },
+    micro: { fontFamily: null, fontSize: 12, fontWeight: '400' }
+  });
+
   const activeTheme = useMemo(() => {
     if (themePreference === 'system') {
       return systemColorScheme === 'dark' ? darkTheme : lightTheme;
@@ -59,6 +68,8 @@ export function SettingsProvider({ children }) {
       setTimezone,
       fontFamily,
       setFontFamily,
+      typographyConfig,
+      setTypographyConfig,
       theme: activeTheme,
       isDark: activeTheme === darkTheme
     }}>

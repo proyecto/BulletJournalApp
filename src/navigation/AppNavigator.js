@@ -12,6 +12,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import ListsScreen from '../screens/ListsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ListDetailScreen from '../screens/ListDetailScreen';
+import AdvancedTypographyScreen from '../screens/AdvancedTypographyScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -86,6 +87,7 @@ export default function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={BottomTabs} />
       <Stack.Screen name="ListDetail" component={ListDetailScreen} />
+      <Stack.Screen name="AdvancedTypography" component={AdvancedTypographyScreen} />
     </Stack.Navigator>
   );
 }

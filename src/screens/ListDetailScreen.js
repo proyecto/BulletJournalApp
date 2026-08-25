@@ -40,7 +40,7 @@ export default function ListDetailScreen({ route, navigation }) {
         <View style={[styles.bullet, { borderColor: theme.text }]}>
           {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
         </View>
-        <Text style={[
+        <Text variant="body" style={[
           styles.itemText, 
           { color: isCompleted ? theme.textCompleted : theme.text },
           isCompleted && styles.itemTextCompleted
@@ -66,10 +66,10 @@ export default function ListDetailScreen({ route, navigation }) {
             <Ionicons name="chevron-back" size={28} color={theme.text} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+            <Text variant="h2" style={[styles.title, { color: theme.text }]} numberOfLines={1}>
               {list.title}
             </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            <Text variant="caption" style={[styles.subtitle, { color: theme.textSecondary }]}>
               {listItems.length} {language === 'es' ? 'elementos' : 'items'}
             </Text>
           </View>
@@ -84,7 +84,7 @@ export default function ListDetailScreen({ route, navigation }) {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="documents-outline" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
                 {language === 'es' 
                   ? 'Esta lista está vacía. Añade el primer elemento abajo.' 
                   : 'This list is empty. Add the first item below.'}
@@ -133,16 +133,16 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 15 },
   backButton: { marginRight: 12, padding: 4 },
   headerTitleContainer: { flex: 1 },
-  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, marginTop: 2 },
+  title: { letterSpacing: -0.5 },
+  subtitle: { marginTop: 2 },
   listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, flexGrow: 1 },
   itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   bullet: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
-  itemText: { fontSize: 16, flex: 1 },
+  itemText: { flex: 1 },
   itemTextCompleted: { textDecorationLine: 'line-through' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, marginTop: 60 },
   emptyIcon: { opacity: 0.5, marginBottom: 16 },
-  emptyText: { fontSize: 16, textAlign: 'center', lineHeight: 24 },
+  emptyText: { textAlign: 'center', lineHeight: 24 },
   inputWrapper: { borderTopWidth: 1, paddingTop: 12, paddingBottom: 12 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   textInput: { flex: 1, height: 44, borderRadius: 22, paddingHorizontal: 20, fontSize: 16 },

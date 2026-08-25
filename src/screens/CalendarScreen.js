@@ -99,11 +99,11 @@ export default function CalendarScreen() {
             color={isCompleted ? theme.textCompleted : theme.text} 
           />
         </View>
-        <Text style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
+        <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
           {item.text}
         </Text>
         {isScheduled && (
-          <Text style={[styles.dateBadge, { color: theme.primary, backgroundColor: theme.primaryBackground }, isCompleted && { opacity: 0.5 }]}>
+          <Text variant="micro" style={[styles.dateBadge, { color: theme.primary, backgroundColor: theme.primaryBackground }, isCompleted && { opacity: 0.5 }]}>
             📅 {language === 'es' ? 'Prog.' : 'Sch.'}
           </Text>
         )}
@@ -114,7 +114,7 @@ export default function CalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>
+        <Text variant="h1" style={[styles.title, { color: theme.text }]}>
           {language === 'es' ? 'Registro Futuro' : 'Future Log'}
         </Text>
       </View>
@@ -149,7 +149,7 @@ export default function CalendarScreen() {
       />
       
       <View style={styles.listHeader}>
-        <Text style={[styles.listTitle, { color: theme.text }]}>
+        <Text variant="h2" style={[styles.listTitle, { color: theme.text }]}>
           {selectedDate === getFormattedDate(new Date()) ? (language === 'es' ? 'Hoy' : 'Today') : selectedDate}
         </Text>
       </View>
@@ -162,7 +162,7 @@ export default function CalendarScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyDate}>
-            <Text style={[styles.emptyDateText, { color: theme.textSecondary }]}>
+            <Text variant="body" style={[styles.emptyDateText, { color: theme.textSecondary }]}>
               {language === 'es' ? 'Nada programado para este día.' : 'Nothing scheduled for this day.'}
             </Text>
           </View>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
-  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
+  title: { letterSpacing: -0.5, textAlign: 'center' },
   calendar: {
     marginBottom: 10,
     borderBottomWidth: 1,
@@ -188,8 +188,6 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   listTitle: {
-    fontSize: 22,
-    fontWeight: '700',
     letterSpacing: -0.5,
   },
   listContent: {
@@ -215,11 +213,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   itemText: {
-    fontSize: 16,
     flex: 1,
   },
   dateBadge: { 
-    fontSize: 12, 
     paddingHorizontal: 8, 
     paddingVertical: 4, 
     borderRadius: 8, 
@@ -231,6 +227,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyDateText: {
-    fontSize: 16,
   }
 });

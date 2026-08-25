@@ -108,11 +108,11 @@ export default function DailyLogScreen() {
           />
         </View>
         <View style={styles.cardContent}>
-          <Text style={[styles.cardText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
+          <Text variant="body" style={[styles.cardText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
             {item.text}
           </Text>
           {isScheduled && (
-             <Text style={[styles.dateBadge, { color: theme.primary, backgroundColor: theme.primaryBackground }, isCompleted && { opacity: 0.5 }]}>📅 {item.date}</Text>
+             <Text variant="micro" style={[styles.dateBadge, { color: theme.primary, backgroundColor: theme.primaryBackground }, isCompleted && { opacity: 0.5 }]}>📅 {item.date}</Text>
           )}
         </View>
       </TouchableOpacity>
@@ -134,8 +134,8 @@ export default function DailyLogScreen() {
               <Ionicons name="chevron-back" size={24} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerTitles}>
-              <Text style={[styles.title, { color: theme.text }]}>{isViewingToday ? 'Daily Log' : currentLogDateStr}</Text>
-              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              <Text variant="h1" style={[styles.title, { color: theme.text }]}>{isViewingToday ? 'Daily Log' : currentLogDateStr}</Text>
+              <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
                 {currentLogDate.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Text>
             </View>
@@ -153,7 +153,7 @@ export default function DailyLogScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
                 {language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.'}
               </Text>
             </View>
@@ -228,17 +228,17 @@ const styles = StyleSheet.create({
   headerNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitles: { alignItems: 'center' },
   navButton: { padding: 8 },
-  title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: 16, marginTop: 4, textTransform: 'capitalize' },
+  title: { letterSpacing: -0.5 },
+  subtitle: { marginTop: 4, textTransform: 'capitalize' },
   listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
   card: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 10, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
   iconContainer: { width: 24, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   taskIcon: { transform: [{ scale: 0.8 }] },
   cardContent: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardText: { fontSize: 16, flex: 1 },
-  dateBadge: { fontSize: 12, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', marginLeft: 8 },
+  cardText: { flex: 1 },
+  dateBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', marginLeft: 8 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60 },
-  emptyText: { fontSize: 16 },
+  emptyText: { },
   inputWrapper: { borderTopWidth: 1, paddingTop: 8, paddingBottom: 12 },
   typeSelector: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 },
   typeButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
