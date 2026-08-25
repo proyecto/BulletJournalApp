@@ -9,6 +9,7 @@ import { useSettings } from '../context/SettingsContext';
 // Screens
 import DailyLogScreen from '../screens/DailyLogScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import ListsScreen from '../screens/ListsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -31,6 +32,8 @@ function BottomTabs() {
             iconName = focused ? 'journal' : 'journal-outline';
           } else if (route.name === 'Calendario') {
             iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'Listas') {
+            iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'Ajustes') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
@@ -62,6 +65,11 @@ function BottomTabs() {
         name="Calendario" 
         component={CalendarScreen} 
         options={{ title: language === 'es' ? 'Future Log' : 'Future Log' }}
+      />
+      <Tab.Screen 
+        name="Listas" 
+        component={ListsScreen} 
+        options={{ title: language === 'es' ? 'Listas' : 'Lists' }}
       />
       <Tab.Screen 
         name="Ajustes" 
