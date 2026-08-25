@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { 
   StyleSheet, 
-  Text, 
   View, 
   TextInput, 
   TouchableOpacity, 
   FlatList, 
   KeyboardAvoidingView, 
-  Platform
+  Platform, 
+  Alert 
 } from 'react-native';
+import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';

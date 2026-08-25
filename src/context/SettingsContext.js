@@ -40,6 +40,7 @@ export function SettingsProvider({ children }) {
   const [themePreference, setThemePreference] = useState('system'); // 'light' | 'dark' | 'system'
   const [language, setLanguage] = useState('es'); // 'es' | 'en'
   const [timezone, setTimezone] = useState('Europe/Madrid'); // 'system' | 'Europe/Madrid' | ...
+  const [fontFamily, setFontFamily] = useState('system'); // 'system' | 'inter' | 'lora' | 'jetbrains'
 
   const activeTheme = useMemo(() => {
     if (themePreference === 'system') {
@@ -56,6 +57,8 @@ export function SettingsProvider({ children }) {
       setLanguage,
       timezone,
       setTimezone,
+      fontFamily,
+      setFontFamily,
       theme: activeTheme,
       isDark: activeTheme === darkTheme
     }}>
