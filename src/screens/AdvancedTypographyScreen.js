@@ -3,6 +3,7 @@ import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text a
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
 import { useSettings } from '../context/SettingsContext';
 import { fontOptions } from '../constants/fonts';
 
@@ -18,12 +19,31 @@ const VARIANTS = [
 const WEIGHTS = ['400', '500', '600', '700', '800'];
 const SIZES = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 30, 36, 42];
 
+
+
 export default function AdvancedTypographyScreen({ navigation }) {
   const { theme, language, typographyConfig, setTypographyConfig } = useSettings();
   const insets = useSafeAreaInsets();
   
   const [activeVariant, setActiveVariant] = useState(null);
-  const [modalType, setModalType] = useState(null); // 'family', 'size', 'weight'
+  const [modalType, setModalType] = useState(null); // 'family', 'size', 'weight', 'color'
+  const [tempColor, setTempColor] = useState({ r: 0, g: 0, b: 0 });
+
+  const openColorModal = (variant) => {
+    setActiveVariant(variant);
+    setModalType('color');
+    const existingColor = typographyConfig[variant]?.color;
+    if (existingColor && existingColor.startsWith('#')) {
+      const hex = existingColor.replace('#', '');
+      setTempColor({
+        r: parseInt(hex.substring(0, 2), 16) || 0,
+        g: parseInt(hex.substring(2, 4), 16) || 0,
+        b: parseInt(hex.substring(4, 6), 16) || 0,
+      });
+    } else {
+      setTempColor({ r: 0, g: 0, b: 0 });
+    }
+  };
 
   const handleUpdate = (variant, key, value) => {
     setTypographyConfig(prev => ({
@@ -100,7 +120,7 @@ export default function AdvancedTypographyScreen({ navigation }) {
 
                 {/* Weight Row */}
                 <TouchableOpacity 
-                  style={[styles.optionRow, { borderBottomWidth: 0 }]} 
+                  style={[styles.optionRow, { borderBottomColor: theme.border }]} 
                   onPress={() => { setActiveVariant(variantItem.id); setModalType('weight'); }}
                 >
                   <View style={styles.optionLeft}>
@@ -111,6 +131,27 @@ export default function AdvancedTypographyScreen({ navigation }) {
                   </View>
                   <View style={styles.optionRight}>
                     <Text style={{ color: theme.primary, marginRight: 8 }}>{config.fontWeight}</Text>
+                    <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Color Row */}
+                <TouchableOpacity 
+                  style={[styles.optionRow, { borderBottomWidth: 0 }]} 
+                  onPress={() => openColorModal(variantItem.id)}
+                >
+                  <View style={styles.optionLeft}>
+                    <Ionicons name="color-palette-outline" size={20} color={theme.textSecondary} style={styles.optionIcon} />
+                    <Text style={[styles.optionLabel, { color: theme.text }]}>
+                      {language === 'es' ? 'Color' : 'Color'}
+                    </Text>
+                  </View>
+                  <View style={styles.optionRight}>
+                    {config.color ? (
+                      <View style={[styles.colorPreview, { backgroundColor: config.color }]} />
+                    ) : (
+                      <Text style={{ color: theme.textSecondary, marginRight: 8 }}>Global</Text>
+                    )}
                     <Ionicons name="chevron-down" size={16} color={theme.textSecondary} />
                   </View>
                 </TouchableOpacity>
@@ -200,6 +241,71 @@ export default function AdvancedTypographyScreen({ navigation }) {
                 )}
               />
             )}
+
+            {modalType === 'color' && tempColor && (
+              <ScrollView style={{ padding: 20 }}>
+                <View style={{ height: 100, backgroundColor: `rgb(${tempColor.r}, ${tempColor.g}, ${tempColor.b})`, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: theme.border }} />
+                
+                <Text style={{color: theme.text, marginBottom: 8}}>R: {tempColor.r}</Text>
+                <Slider
+                  minimumValue={0}
+                  maximumValue={255}
+                  step={1}
+                  value={tempColor.r}
+                  onValueChange={(val) => setTempColor(prev => ({...prev, r: val}))}
+                  minimumTrackTintColor="#FF3B30"
+                  thumbTintColor={theme.text}
+                />
+                
+                <Text style={{color: theme.text, marginBottom: 8, marginTop: 12}}>G: {tempColor.g}</Text>
+                <Slider
+                  minimumValue={0}
+                  maximumValue={255}
+                  step={1}
+                  value={tempColor.g}
+                  onValueChange={(val) => setTempColor(prev => ({...prev, g: val}))}
+                  minimumTrackTintColor="#4CD964"
+                  thumbTintColor={theme.text}
+                />
+                
+                <Text style={{color: theme.text, marginBottom: 8, marginTop: 12}}>B: {tempColor.b}</Text>
+                <Slider
+                  minimumValue={0}
+                  maximumValue={255}
+                  step={1}
+                  value={tempColor.b}
+                  onValueChange={(val) => setTempColor(prev => ({...prev, b: val}))}
+                  minimumTrackTintColor="#007AFF"
+                  thumbTintColor={theme.text}
+                />
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, marginBottom: 10 }}>
+                  <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: theme.cardBackground, borderWidth: 1, borderColor: theme.border, flex: 1, marginRight: 8 }]}
+                    onPress={() => {
+                       handleUpdate(activeVariant, 'color', null);
+                       setModalType(null);
+                    }}
+                  >
+                    <Text style={{color: theme.textSecondary, textAlign: 'center'}}>{language === 'es' ? 'Global' : 'Global'}</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: theme.primary, flex: 1, marginLeft: 8 }]}
+                    onPress={() => {
+                       const hex = '#' + 
+                         tempColor.r.toString(16).padStart(2, '0') + 
+                         tempColor.g.toString(16).padStart(2, '0') + 
+                         tempColor.b.toString(16).padStart(2, '0');
+                       handleUpdate(activeVariant, 'color', hex.toUpperCase());
+                       setModalType(null);
+                    }}
+                  >
+                    <Text style={{color: 'white', textAlign: 'center'}}>{language === 'es' ? 'Guardar' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -226,4 +332,6 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: '700' },
   modalOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   modalOptionText: { fontSize: 16 },
+  colorPreview: { width: 16, height: 16, borderRadius: 8, marginRight: 12 },
+  button: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }
 });

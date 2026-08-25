@@ -17,9 +17,12 @@ export function AppText({ style, children, variant, ...props }) {
       fontSize: config.fontSize,
       fontWeight: config.fontWeight
     };
+    if (config.color) {
+      variantStyle.color = config.color;
+    }
   }
 
-  let cleanedStyle = { ...variantStyle, ...StyleSheet.flatten(style) };
+  let cleanedStyle = { ...StyleSheet.flatten(style), ...variantStyle };
   let weight = cleanedStyle.fontWeight ? cleanedStyle.fontWeight.toString() : '400';
 
   let finalFontFamily = undefined; 
