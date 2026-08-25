@@ -11,6 +11,7 @@ import DailyLogScreen from '../screens/DailyLogScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import ListsScreen from '../screens/ListsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import ListDetailScreen from '../screens/ListDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -84,6 +85,7 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={BottomTabs} />
+      <Stack.Screen name="ListDetail" component={ListDetailScreen} />
     </Stack.Navigator>
   );
 }

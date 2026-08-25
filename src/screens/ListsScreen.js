@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
 
-export default function ListsScreen() {
+export default function ListsScreen({ navigation }) {
   const { theme, language } = useSettings();
   const { lists, addList } = useJournal();
   const insets = useSafeAreaInsets();
@@ -23,6 +23,7 @@ export default function ListsScreen() {
     <TouchableOpacity 
       style={[styles.card, { backgroundColor: theme.cardBackground, shadowColor: theme.text }]}
       activeOpacity={0.7}
+      onPress={() => navigation.navigate('ListDetail', { list: item })}
     >
       <View style={styles.iconContainer}>
         <Ionicons name="list" size={20} color={theme.textSecondary} />
