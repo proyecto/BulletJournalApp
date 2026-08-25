@@ -28,9 +28,18 @@ const JournalContext = createContext();
 export const JournalProvider = ({ children }) => {
   // Las entradas ahora vivirán aquí de forma global
   const [entries, setEntries] = useState([]);
+  const [lists, setLists] = useState([]);
 
   const addEntry = (entry) => {
     setEntries((prev) => [...prev, entry]);
+  };
+
+  const addList = (title) => {
+    const newList = {
+      id: Date.now().toString(),
+      title
+    };
+    setLists((prev) => [...prev, newList]);
   };
 
   const toggleStatus = (id, currentLogDate) => {
@@ -52,7 +61,7 @@ export const JournalProvider = ({ children }) => {
   };
 
   return (
-    <JournalContext.Provider value={{ entries, addEntry, toggleStatus }}>
+    <JournalContext.Provider value={{ entries, addEntry, toggleStatus, lists, addList }}>
       {children}
     </JournalContext.Provider>
   );
