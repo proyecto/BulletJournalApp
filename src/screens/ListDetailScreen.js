@@ -10,7 +10,6 @@ export default function ListDetailScreen({ route, navigation }) {
   const { theme, language } = useSettings();
   const { entries, addEntry, toggleStatus } = useJournal();
   const insets = useSafeAreaInsets();
-  
   const [inputText, setInputText] = useState('');
 
   // Filtrar solo las entradas que pertenecen a esta lista
@@ -55,7 +54,7 @@ export default function ListDetailScreen({ route, navigation }) {
     <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
       <KeyboardAvoidingView 
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.header}>
@@ -76,7 +75,6 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
 
         <FlatList
-          style={{ flex: 1 }}
           data={listItems}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -97,7 +95,7 @@ export default function ListDetailScreen({ route, navigation }) {
         <View style={[styles.inputWrapper, { 
           backgroundColor: theme.cardBackground, 
           borderTopColor: theme.border,
-          paddingBottom: Math.max(insets.bottom, 12) 
+          paddingBottom: 12 
         }]}>
           <View style={styles.inputContainer}>
             <TextInput
@@ -123,6 +121,7 @@ export default function ListDetailScreen({ route, navigation }) {
           </View>
         </View>
       </KeyboardAvoidingView>
+      <View style={{ height: insets.bottom, backgroundColor: theme.cardBackground }} />
     </View>
   );
 }
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
   headerTitleContainer: { flex: 1 },
   title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { fontSize: 14, marginTop: 2 },
-  listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
+  listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, flexGrow: 1 },
   itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   bullet: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
   itemText: { fontSize: 16, flex: 1 },
