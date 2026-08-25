@@ -42,6 +42,10 @@ export const JournalProvider = ({ children }) => {
     setLists((prev) => [...prev, newList]);
   };
 
+  const reorderLists = (newOrder) => {
+    setLists(newOrder);
+  };
+
   const toggleStatus = (id, currentLogDate) => {
     setEntries((prev) => 
       prev.map(entry => {
@@ -61,7 +65,7 @@ export const JournalProvider = ({ children }) => {
   };
 
   return (
-    <JournalContext.Provider value={{ entries, addEntry, toggleStatus, lists, addList }}>
+    <JournalContext.Provider value={{ entries, addEntry, toggleStatus, lists, addList, reorderLists }}>
       {children}
     </JournalContext.Provider>
   );

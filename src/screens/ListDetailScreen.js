@@ -55,7 +55,7 @@ export default function ListDetailScreen({ route, navigation }) {
     <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
       <KeyboardAvoidingView 
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.header}>
@@ -76,6 +76,7 @@ export default function ListDetailScreen({ route, navigation }) {
         </View>
 
         <FlatList
+          style={{ flex: 1 }}
           data={listItems}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
   headerTitleContainer: { flex: 1 },
   title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { fontSize: 14, marginTop: 2 },
-  listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, flexGrow: 1 },
+  listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
   itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   bullet: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
   itemText: { fontSize: 16, flex: 1 },
