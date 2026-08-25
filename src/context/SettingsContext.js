@@ -1,5 +1,6 @@
-import React, { createContext, useState, useContext, useMemo } from 'react';
+import React, { createContext, useState, useContext, useMemo, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import db from '../database/db';
 
 const SettingsContext = createContext();
 
@@ -37,12 +38,14 @@ export const darkTheme = {
 
 export function SettingsProvider({ children }) {
   const systemColorScheme = useColorScheme(); // 'light' | 'dark'
-  const [themePreference, setThemePreference] = useState('system'); // 'light' | 'dark' | 'system'
-  const [language, setLanguage] = useState('es'); // 'es' | 'en'
-  const [timezone, setTimezone] = useState('Europe/Madrid'); // 'system' | 'Europe/Madrid' | ...
-  const [fontFamily, setFontFamily] = useState('system'); // 'system' | 'inter' | 'lora' | 'jetbrains'
+  const [isLoaded, setIsLoaded] = useState(false);
+  
+  const [themePreference, setThemePreferenceState] = useState('system'); // 'light' | 'dark' | 'system'
+  const [language, setLanguageState] = useState('es'); // 'es' | 'en'
+  const [timezone, setTimezoneState] = useState('Europe/Madrid'); // 'system' | 'Europe/Madrid' | ...
+  const [fontFamily, setFontFamilyState] = useState('system'); // 'system' | 'inter' | 'lora' | 'jetbrains'
 
-  const [typographyConfig, setTypographyConfig] = useState({
+  const [typographyConfig, setTypographyConfigState] = useState({
     h1: { fontFamily: null, fontSize: 30, fontWeight: '800', color: null },
     h2: { fontFamily: null, fontSize: 24, fontWeight: '800', color: null },
     h3: { fontFamily: null, fontSize: 20, fontWeight: '700', color: null },
@@ -51,12 +54,57 @@ export function SettingsProvider({ children }) {
     micro: { fontFamily: null, fontSize: 12, fontWeight: '400', color: null }
   });
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const rows = await db.getAllAsync('SELECT key, value FROM settings');
+        const settings = {};
+        rows.forEach(row => { settings[row.key] = row.value; });
+        
+        if (settings.themePreference) setThemePreferenceState(settings.themePreference);
+        if (settings.language) setLanguageState(settings.language);
+        if (settings.timezone) setTimezoneState(settings.timezone);
+        if (settings.fontFamily) setFontFamilyState(settings.fontFamily);
+        if (settings.typographyConfig) setTypographyConfigState(JSON.parse(settings.typographyConfig));
+      } catch (e) {
+        console.error('Error loading settings from SQLite', e);
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const saveSetting = async (key, value) => {
+    try {
+      const valString = typeof value === 'string' ? value : JSON.stringify(value);
+      await db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, valString]);
+    } catch (e) {
+      console.error('Error saving setting to SQLite', e);
+    }
+  };
+
+  const setThemePreference = (val) => { setThemePreferenceState(val); saveSetting('themePreference', val); };
+  const setLanguage = (val) => { setLanguageState(val); saveSetting('language', val); };
+  const setTimezone = (val) => { setTimezoneState(val); saveSetting('timezone', val); };
+  const setFontFamily = (val) => { setFontFamilyState(val); saveSetting('fontFamily', val); };
+  
+  const setTypographyConfig = (val) => { 
+    setTypographyConfigState(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      saveSetting('typographyConfig', next);
+      return next;
+    }); 
+  };
+
   const activeTheme = useMemo(() => {
     if (themePreference === 'system') {
       return systemColorScheme === 'dark' ? darkTheme : lightTheme;
     }
     return themePreference === 'dark' ? darkTheme : lightTheme;
   }, [themePreference, systemColorScheme]);
+
+  if (!isLoaded) return null;
 
   return (
     <SettingsContext.Provider value={{

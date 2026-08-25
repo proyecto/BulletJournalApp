@@ -35,6 +35,9 @@ import { DancingScript_400Regular, DancingScript_500Medium, DancingScript_600Sem
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
 import { SettingsProvider } from './src/context/SettingsContext';
+import { initDB } from './src/database/db';
+
+initDB();
 
 SplashScreen.preventAutoHideAsync();
 
