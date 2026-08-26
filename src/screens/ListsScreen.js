@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import DragList from 'react-native-draglist';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +9,7 @@ import { useJournal } from '../context/JournalContext';
 
 export default function ListsScreen({ navigation }) {
   const { theme, language } = useSettings();
-  const { lists, addList, reorderLists } = useJournal();
+  const { lists, addList, reorderLists, deleteList } = useJournal();
   const insets = useSafeAreaInsets();
   
   const [inputText, setInputText] = useState('');
@@ -20,37 +21,34 @@ export default function ListsScreen({ navigation }) {
     }
   };
 
-  const moveUp = (index) => {
-    if (index === 0) return;
-    const newLists = [...lists];
-    const temp = newLists[index];
-    newLists[index] = newLists[index - 1];
-    newLists[index - 1] = temp;
-    reorderLists(newLists);
+  const confirmDelete = (listId, title) => {
+    Alert.alert(
+      language === 'es' ? 'Eliminar lista' : 'Delete list',
+      language === 'es' 
+        ? `¿Estás seguro de que quieres eliminar la lista "${title}" y todas sus notas?` 
+        : `Are you sure you want to delete the list "${title}" and all its notes?`,
+      [
+        { text: language === 'es' ? 'Cancelar' : 'Cancel', style: 'cancel' },
+        { text: language === 'es' ? 'Eliminar' : 'Delete', style: 'destructive', onPress: () => deleteList(listId) }
+      ]
+    );
   };
 
-  const moveDown = (index) => {
-    if (index === lists.length - 1) return;
-    const newLists = [...lists];
-    const temp = newLists[index];
-    newLists[index] = newLists[index + 1];
-    newLists[index + 1] = temp;
-    reorderLists(newLists);
-  };
-
-  const renderItem = ({ item, index }) => (
+  const renderItem = ({ item, onDragStart, onDragEnd, isActive }) => (
     <TouchableOpacity 
       style={[
         styles.card, 
         { 
           backgroundColor: theme.cardBackground, 
           shadowColor: theme.text,
-          elevation: 1,
-          shadowOpacity: 0.03,
+          elevation: isActive ? 5 : 1,
+          shadowOpacity: isActive ? 0.2 : 0.03,
+          opacity: isActive ? 0.9 : 1,
         }
       ]}
       activeOpacity={0.7}
       onPress={() => navigation.navigate('ListDetail', { list: item })}
+      disabled={isActive}
     >
       <View style={styles.iconContainer}>
         <Ionicons name="list" size={20} color={theme.textSecondary} />
@@ -62,24 +60,24 @@ export default function ListsScreen({ navigation }) {
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.iconButton}
-          onPress={() => moveUp(index)}
-          disabled={index === 0}
+          onPress={() => confirmDelete(item.id, item.title)}
         >
           <Ionicons 
-            name="chevron-up" 
-            size={24} 
-            color={index === 0 ? theme.border : theme.textSecondary} 
+            name="trash-outline" 
+            size={20} 
+            color={theme.error || '#ff3b30'} 
           />
         </TouchableOpacity>
         <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => moveDown(index)}
-          disabled={index === lists.length - 1}
+          style={[styles.iconButton, { marginLeft: 8 }]}
+          onLongPress={onDragStart}
+          onPressOut={onDragEnd}
+          delayLongPress={200}
         >
           <Ionicons 
-            name="chevron-down" 
+            name="menu" 
             size={24} 
-            color={index === lists.length - 1 ? theme.border : theme.textSecondary} 
+            color={theme.textSecondary} 
           />
         </TouchableOpacity>
       </View>
@@ -103,9 +101,15 @@ export default function ListsScreen({ navigation }) {
           </Text>
         </View>
 
-        <FlatList
+        <DragList
           data={lists}
           keyExtractor={(item) => item.id}
+          onReordered={async (fromIndex, toIndex) => {
+            const newLists = [...lists];
+            const temp = newLists.splice(fromIndex, 1)[0];
+            newLists.splice(toIndex, 0, temp);
+            reorderLists(newLists);
+          }}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}

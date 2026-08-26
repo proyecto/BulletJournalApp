@@ -83,6 +83,21 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  const deleteList = async (id) => {
+    try {
+      // First delete all entries associated with this list
+      await db.runAsync('DELETE FROM entries WHERE listId = ?', [id]);
+      // Then delete the list itself
+      await db.runAsync('DELETE FROM lists WHERE id = ?', [id]);
+      
+      // Update state
+      setLists((prev) => prev.filter((list) => list.id !== id));
+      setEntries((prev) => prev.filter((entry) => entry.listId !== id));
+    } catch (e) {
+      console.error('Error deleting list', e);
+    }
+  };
+
   const toggleStatus = async (id, currentLogDate) => {
     const entryIndex = entries.findIndex(e => e.id === id);
     if (entryIndex === -1) return;
@@ -113,7 +128,7 @@ export const JournalProvider = ({ children }) => {
   if (!isLoaded) return null;
 
   return (
-    <JournalContext.Provider value={{ entries, addEntry, toggleStatus, lists, addList, reorderLists }}>
+    <JournalContext.Provider value={{ entries, addEntry, toggleStatus, lists, addList, reorderLists, deleteList }}>
       {children}
     </JournalContext.Provider>
   );
