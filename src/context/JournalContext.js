@@ -1,45 +1,98 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import db from '../database/db';
+/**
+ * @module JournalContext
+ * @pattern Facade + Observer
+ *
+ * FACADE: Este módulo expone una API simple y unificada a las pantallas de la app.
+ * Internamente coordina EntryRepository, ListRepository y EntryFactory,
+ * pero las pantallas solo ven funciones de alto nivel como `addEntry()` o `deleteList()`.
+ * Si la implementación interna cambia (p.ej: se añade caché), la API pública no cambia.
+ *
+ * OBSERVER: El patrón Observer está implementado mediante React Context + useState.
+ * Los componentes suscritos (via `useJournal()`) son notificados automáticamente
+ * cuando el estado cambia, sin necesidad de polling ni eventos manuales.
+ *
+ * @example
+ * // En cualquier pantalla o componente:
+ * const { entries, addEntry } = useJournal();
+ */
 
-// Formato utilitario para devolver 'YYYY-MM-DD'
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import * as EntryRepository from '../repositories/EntryRepository';
+import * as ListRepository from '../repositories/ListRepository';
+import { createList } from '../factories/EntryFactory';
+
+// ─── Utilidades de Fecha ──────────────────────────────────────────────────────
+
+/**
+ * Formatea una fecha JavaScript al string 'YYYY-MM-DD' requerido por la BD.
+ * Soporta timezones específicos usando la API `Intl.DateTimeFormat`.
+ *
+ * @param {Date|number} date - La fecha a formatear (Date o timestamp ms).
+ * @param {string} [timezone='system'] - El identificador IANA de timezone (ej: 'Europe/Madrid').
+ * @returns {string} La fecha en formato 'YYYY-MM-DD'.
+ */
 export const getFormattedDate = (date, timezone = 'system') => {
   if (!timezone || timezone === 'system') {
     const d = new Date(date);
-    const year = d.getFullYear();
+    const year  = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const day   = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
+
   try {
+    // Intl.DateTimeFormat es la forma nativa y correcta de manejar timezones en JS
     const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
     return formatter.format(new Date(date));
   } catch (e) {
-    // Fallback if Intl or the specific timezone is not supported
+    // Fallback si el timezone no es reconocido por el entorno
     const d = new Date(date);
-    const year = d.getFullYear();
+    const year  = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const day   = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
 };
 
+// ─── Contexto (Observer) ──────────────────────────────────────────────────────
+
+/**
+ * El contexto React que actúa como el "canal de comunicación" del patrón Observer.
+ * Los componentes suscritos via `useJournal()` se re-renderizan automáticamente
+ * cuando cualquier valor del Provider cambia.
+ */
 const JournalContext = createContext();
 
+// ─── Provider (Facade) ────────────────────────────────────────────────────────
+
+/**
+ * El proveedor del contexto. Envuelve a los componentes que necesitan
+ * acceso al estado del diario. Debe colocarse en lo alto del árbol de componentes.
+ *
+ * @param {React.ReactNode} children - Los componentes hijos que tendrán acceso al contexto.
+ */
 export const JournalProvider = ({ children }) => {
+  // Estado en memoria de la app (la "caché" de lo que hay en SQLite)
   const [entries, setEntries] = useState([]);
-  const [lists, setLists] = useState([]);
+  const [lists,   setLists]   = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  /**
+   * Carga inicial de datos desde SQLite al arrancar la app.
+   * Se ejecuta una sola vez gracias al array de dependencias vacío `[]`.
+   * El flag `isLoaded` evita que la app se renderice antes de tener datos.
+   */
   useEffect(() => {
     const loadJournal = async () => {
       try {
-        const loadedLists = await db.getAllAsync('SELECT * FROM lists ORDER BY order_index ASC');
-        const loadedEntries = await db.getAllAsync('SELECT * FROM entries');
+        const [loadedLists, loadedEntries] = await Promise.all([
+          ListRepository.getAllLists(),
+          EntryRepository.getAllEntries(),
+        ]);
         setLists(loadedLists);
         setEntries(loadedEntries);
       } catch (e) {
-        console.error('Error loading journal from SQLite', e);
+        console.error('[JournalContext] Error cargando datos de SQLite:', e);
       } finally {
         setIsLoaded(true);
       }
@@ -47,91 +100,146 @@ export const JournalProvider = ({ children }) => {
     loadJournal();
   }, []);
 
+  // ─── Métodos de la Facade (API Pública) ────────────────────────────────────
+
+  /**
+   * Añade una nueva entrada al diario.
+   * Persiste en SQLite y actualiza el estado en memoria para notificar a los observers.
+   * El objeto `entry` debe ser creado con `EntryFactory` para garantizar
+   * que todos los campos obligatorios están presentes.
+   *
+   * @param {Object} entry - El objeto entrada (creado por EntryFactory).
+   */
   const addEntry = async (entry) => {
     try {
-      await db.runAsync(
-        'INSERT INTO entries (id, text, type, status, date, completedAt, listId) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [entry.id, entry.text, entry.type, entry.status, entry.date, entry.completedAt || null, entry.listId || null]
-      );
-      setEntries((prev) => [...prev, entry]);
+      await EntryRepository.insertEntry(entry);
+      // Actualización optimista: añadimos al estado sin re-consultar la BD
+      setEntries(prev => [...prev, entry]);
     } catch (e) {
-      console.error('Error adding entry', e);
+      console.error('[JournalContext] Error al añadir entrada:', e);
     }
   };
 
+  /**
+   * Añade una nueva lista de usuario.
+   * Usa `EntryFactory.createList()` para garantizar la consistencia del objeto.
+   *
+   * @param {string} title - El nombre de la nueva lista.
+   */
   const addList = async (title) => {
-    const id = Date.now().toString();
-    const orderIndex = lists.length;
-    const newList = { id, title, order_index: orderIndex };
+    // La factory calcula el order_index basándose en el número de listas actuales
+    const newList = createList(title, lists.length);
     try {
-      await db.runAsync('INSERT INTO lists (id, title, order_index) VALUES (?, ?, ?)', [id, title, orderIndex]);
-      setLists((prev) => [...prev, newList]);
+      await ListRepository.insertList(newList);
+      setLists(prev => [...prev, newList]);
     } catch (e) {
-      console.error('Error adding list', e);
+      console.error('[JournalContext] Error al añadir lista:', e);
     }
   };
 
+  /**
+   * Persiste el nuevo orden de las listas tras un drag & drop.
+   * Usa una actualización optimista: el estado se actualiza inmediatamente
+   * para que la UI sea fluida, y la persistencia ocurre en segundo plano.
+   *
+   * @param {Array<Object>} newOrder - El array de listas en su nuevo orden.
+   */
   const reorderLists = async (newOrder) => {
-    setLists(newOrder); // Optimistic update
+    // Optimistic update: el usuario ve el cambio inmediatamente
+    setLists(newOrder);
     try {
+      // Persistimos cada cambio de orden en la BD secuencialmente
       for (let i = 0; i < newOrder.length; i++) {
-        const list = newOrder[i];
-        await db.runAsync('UPDATE lists SET order_index = ? WHERE id = ?', [i, list.id]);
+        await ListRepository.updateListOrder(newOrder[i].id, i);
       }
     } catch (e) {
-      console.error('Error reordering lists', e);
+      console.error('[JournalContext] Error al reordenar listas:', e);
     }
   };
 
+  /**
+   * Elimina una lista y TODAS sus entradas asociadas.
+   * El orden de operaciones es crítico: primero borrar las entradas (hijos),
+   * luego la lista (padre). SQLite no tiene Foreign Key constraints activadas
+   * por defecto en expo-sqlite, así que gestionamos la integridad manualmente.
+   *
+   * @param {string} id - El ID de la lista a eliminar.
+   */
   const deleteList = async (id) => {
     try {
-      // First delete all entries associated with this list
-      await db.runAsync('DELETE FROM entries WHERE listId = ?', [id]);
-      // Then delete the list itself
-      await db.runAsync('DELETE FROM lists WHERE id = ?', [id]);
-      
-      // Update state
-      setLists((prev) => prev.filter((list) => list.id !== id));
-      setEntries((prev) => prev.filter((entry) => entry.listId !== id));
+      // 1. Borrar entradas hijas (integridad referencial manual)
+      await EntryRepository.deleteEntriesByListId(id);
+      // 2. Borrar la lista padre
+      await ListRepository.deleteList(id);
+      // 3. Actualizar el estado en memoria
+      setLists(prev => prev.filter(list => list.id !== id));
+      setEntries(prev => prev.filter(entry => entry.listId !== id));
     } catch (e) {
-      console.error('Error deleting list', e);
+      console.error('[JournalContext] Error al eliminar lista:', e);
     }
   };
 
+  /**
+   * Alterna el estado de completado de una tarea.
+   * Solo funciona con entradas de tipo 'task'.
+   * Si la tarea está 'open' -> la completa y guarda `completedAt`.
+   * Si la tarea está 'completed' -> la reabre y borra `completedAt`.
+   *
+   * @param {string} id - El ID de la entrada a modificar.
+   * @param {string|null} currentLogDate - La fecha del día visualizado (para `completedAt`).
+   */
   const toggleStatus = async (id, currentLogDate) => {
-    const entryIndex = entries.findIndex(e => e.id === id);
-    if (entryIndex === -1) return;
-    
-    const entry = entries[entryIndex];
-    if (entry.type !== 'task') return;
-    
-    const isCompleting = entry.status === 'open';
-    const newStatus = isCompleting ? 'completed' : 'open';
-    const newCompletedAt = isCompleting ? currentLogDate : null;
+    const entry = entries.find(e => e.id === id);
+    if (!entry || entry.type !== 'task') return; // Solo las tareas se pueden completar
+
+    const isCompleting    = entry.status === 'open';
+    const newStatus       = isCompleting ? 'completed' : 'open';
+    const newCompletedAt  = isCompleting ? currentLogDate : null;
 
     try {
-      await db.runAsync('UPDATE entries SET status = ?, completedAt = ? WHERE id = ?', [newStatus, newCompletedAt, id]);
-      
-      setEntries((prev) => 
-        prev.map(e => {
-          if (e.id === id) {
-            return { ...e, status: newStatus, completedAt: newCompletedAt };
-          }
-          return e;
-        })
+      await EntryRepository.updateEntryStatus(id, newStatus, newCompletedAt);
+      // Actualización inmutable del estado: creamos un nuevo array con la entrada modificada
+      setEntries(prev =>
+        prev.map(e => e.id === id ? { ...e, status: newStatus, completedAt: newCompletedAt } : e)
       );
-    } catch (error) {
-      console.error('Error toggling status', error);
+    } catch (e) {
+      console.error('[JournalContext] Error al cambiar estado de tarea:', e);
     }
   };
 
+  // Mientras los datos de SQLite no se han cargado, no renderizamos nada.
+  // Esto evita un flash de contenido vacío al arrancar la app.
   if (!isLoaded) return null;
 
   return (
-    <JournalContext.Provider value={{ entries, addEntry, toggleStatus, lists, addList, reorderLists, deleteList }}>
+    <JournalContext.Provider value={{
+      entries,
+      addEntry,
+      toggleStatus,
+      lists,
+      addList,
+      reorderLists,
+      deleteList,
+    }}>
       {children}
     </JournalContext.Provider>
   );
 };
 
-export const useJournal = () => useContext(JournalContext);
+// ─── Hook personalizado ───────────────────────────────────────────────────────
+
+/**
+ * Hook de acceso al JournalContext.
+ * Usar este hook (en lugar de `useContext(JournalContext)` directamente) añade
+ * validación: lanza un error descriptivo si se usa fuera del Provider.
+ *
+ * @returns {Object} El valor del contexto con { entries, addEntry, toggleStatus, lists, ... }
+ * @throws {Error} Si se usa fuera de un JournalProvider.
+ */
+export const useJournal = () => {
+  const context = useContext(JournalContext);
+  if (!context) {
+    throw new Error('[useJournal] Debe usarse dentro de un <JournalProvider>.');
+  }
+  return context;
+};

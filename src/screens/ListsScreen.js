@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Alert } from 'react-native';
 import DragList from 'react-native-draglist';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
+import SmartInput from '../components/SmartInput';
 
 export default function ListsScreen({ navigation }) {
   const { theme, language } = useSettings();
-  const { lists, addList, reorderLists, deleteList } = useJournal();
+  const { lists, addList, deleteList, reorderLists } = useJournal();
   const insets = useSafeAreaInsets();
   
   const [inputText, setInputText] = useState('');
@@ -86,77 +87,51 @@ export default function ListsScreen({ navigation }) {
 
   return (
     <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
-      {/* Usamos exactamente el mismo patrón que DailyLogScreen en este commit */}
-      <KeyboardAvoidingView 
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <View style={styles.header}>
-          <Text variant="h1" style={[styles.title, { color: theme.text }]}>
-            {language === 'es' ? 'Listas' : 'Lists'}
-          </Text>
-          <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {language === 'es' ? 'Tus colecciones' : 'Your collections'}
-          </Text>
-        </View>
+      <View style={styles.header}>
+        <Text variant="h1" style={[styles.title, { color: theme.text }]}>
+          {language === 'es' ? 'Listas' : 'Lists'}
+        </Text>
+        <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+          {language === 'es' ? 'Tus colecciones' : 'Your collections'}
+        </Text>
+      </View>
 
-        <DragList
-          data={lists}
-          keyExtractor={(item) => item.id}
-          onReordered={async (fromIndex, toIndex) => {
-            const newLists = [...lists];
-            const temp = newLists.splice(fromIndex, 1)[0];
-            newLists.splice(toIndex, 0, temp);
-            reorderLists(newLists);
-          }}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="list" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
-              <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
-                {language === 'es' 
-                  ? 'Aquí podrás crear tus propias colecciones personalizadas (libros, películas, notas).' 
-                  : 'Here you will be able to create custom collections (books, movies, notes).'}
-              </Text>
-            </View>
-          }
-        />
-
-        <View style={[styles.inputWrapper, { backgroundColor: theme.cardBackground, borderTopColor: theme.border }]}>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[styles.textInput, { backgroundColor: theme.inputBackground, color: theme.text }]}
-              placeholder={language === 'es' ? 'Nueva lista...' : 'New list...'}
-              placeholderTextColor={theme.textSecondary}
-              value={inputText}
-              onChangeText={setInputText}
-              onSubmitEditing={handleAddList}
-            />
-            
-            <TouchableOpacity 
-              style={[
-                styles.sendButton, 
-                { backgroundColor: inputText.trim() ? theme.text : theme.buttonBackground },
-                inputText.trim() ? { shadowColor: theme.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 } : null
-              ]} 
-              onPress={handleAddList}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons name="add" size={24} color={theme.cardBackground} />
-            </TouchableOpacity>
+      <DragList
+        data={lists}
+        keyExtractor={(item) => item.id}
+        onReordered={async (fromIndex, toIndex) => {
+          const newLists = [...lists];
+          const temp = newLists.splice(fromIndex, 1)[0];
+          newLists.splice(toIndex, 0, temp);
+          reorderLists(newLists);
+        }}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="list" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
+            <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
+              {language === 'es' 
+                ? 'Aquí podrás crear tus propias colecciones personalizadas (libros, películas, notas).' 
+                : 'Here you will be able to create custom collections (books, movies, notes).'}
+            </Text>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        }
+      />
+
+      <SmartInput 
+        value={inputText}
+        onChangeText={setInputText}
+        onSubmit={handleAddList}
+        placeholder={language === 'es' ? 'Nueva lista...' : 'New list...'}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  container: { flex: 1 },
   header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
   title: { letterSpacing: -0.5, textAlign: 'center' },
   subtitle: { marginTop: 4, textAlign: 'center' },
@@ -168,9 +143,5 @@ const styles = StyleSheet.create({
   iconButton: { padding: 4, marginLeft: 4 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, marginTop: 60 },
   emptyIcon: { opacity: 0.5, marginBottom: 16 },
-  emptyText: { textAlign: 'center', lineHeight: 24 },
-  inputWrapper: { borderTopWidth: 1, paddingTop: 12, paddingBottom: 12 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
-  textInput: { flex: 1, height: 44, borderRadius: 22, paddingHorizontal: 20, fontSize: 16 },
-  sendButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
+  emptyText: { textAlign: 'center', lineHeight: 24, paddingHorizontal: 20 },
 });
