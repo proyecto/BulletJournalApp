@@ -127,8 +127,8 @@ export default function DailyLogScreen() {
    */
   const renderItem = ({ item }) => {
     const isCompleted  = item.status === 'completed';
-    const iconName     = getEntryIcon(item, currentLogDateStr);
-    const isDisplaced  = isEntryTemporallyDisplaced(item, currentLogDateStr);
+    const iconName     = getEntryIcon(item, currentLogDateStr, timezone);
+    const isDisplaced  = isEntryTemporallyDisplaced(item, currentLogDateStr, timezone);
     const iconColor    = isCompleted
       ? theme.textCompleted
       : (isDisplaced ? theme.primary : theme.text);

@@ -65,22 +65,26 @@ export const filterEntriesForDay = (allEntries, viewingDateStr) => {
   });
 };
 
+import { getFormattedDate } from '../utils/dateUtils';
+
 /**
  * Determina el ícono correcto a mostrar para una entrada del Daily Log,
  * según su tipo, estado y relación temporal con el día visualizado.
  *
  * @param {Object} entry - El objeto entrada.
  * @param {string} currentLogDateStr - La fecha del día que se visualiza ('YYYY-MM-DD').
+ * @param {string} [timezone='system'] - El timezone activo del usuario.
  * @returns {string} El nombre del ícono de Ionicons a renderizar.
  */
-export const getEntryIcon = (entry, currentLogDateStr) => {
+export const getEntryIcon = (entry, currentLogDateStr, timezone = 'system') => {
   if (entry.type === 'event') return 'ellipse-outline';
   if (entry.type === 'note')  return 'remove';
 
   // Lógica de iconos para tareas:
   if (entry.status === 'completed') return 'close';           // Tarea completada: X
 
-  const creationDate = new Date(parseInt(entry.id)).toISOString().split('T')[0];
+  // Usamos getFormattedDate con el timezone correcto en lugar de toISOString (que usa UTC y genera desfases horarios)
+  const creationDate = getFormattedDate(new Date(parseInt(entry.id)), timezone);
   const isScheduled = entry.date !== creationDate;            // Entrada programada hacia adelante
   const isMigrated  = entry.date < currentLogDateStr;        // Tarea arrastrada de días anteriores
 
@@ -95,10 +99,11 @@ export const getEntryIcon = (entry, currentLogDateStr) => {
  *
  * @param {Object} entry - El objeto entrada.
  * @param {string} currentLogDateStr - La fecha del día visualizado.
+ * @param {string} [timezone='system'] - El timezone activo del usuario.
  * @returns {boolean} True si la entrada tiene una fecha diferente a hoy.
  */
-export const isEntryTemporallyDisplaced = (entry, currentLogDateStr) => {
-  const creationDate = new Date(parseInt(entry.id)).toISOString().split('T')[0];
+export const isEntryTemporallyDisplaced = (entry, currentLogDateStr, timezone = 'system') => {
+  const creationDate = getFormattedDate(new Date(parseInt(entry.id)), timezone);
   const isScheduled = entry.date !== creationDate;
   const isMigrated  = entry.date < currentLogDateStr;
   return isScheduled || isMigrated;
