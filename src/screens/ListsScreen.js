@@ -71,9 +71,8 @@ export default function ListsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.iconButton, { marginLeft: 8 }]}
-          onLongPress={onDragStart}
+          onPressIn={onDragStart}
           onPressOut={onDragEnd}
-          delayLongPress={200}
         >
           <Ionicons 
             name="menu" 
