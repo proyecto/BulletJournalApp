@@ -177,6 +177,21 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Elimina una entrada del diario por su ID (facade al EntryRepository).
+   *
+   * @param {string} id - El ID de la entrada a eliminar.
+   */
+  const deleteEntry = async (id) => {
+    try {
+      await EntryRepository.deleteEntryById(id);
+      // Actualización inmutable del estado
+      setEntries(prev => prev.filter(entry => entry.id !== id));
+    } catch (e) {
+      console.error('[JournalContext] Error al eliminar entrada:', e);
+    }
+  };
+
   // Mientras los datos de SQLite no se han cargado, no renderizamos nada.
   // Esto evita un flash de contenido vacío al arrancar la app.
   if (!isLoaded) return null;
@@ -186,6 +201,7 @@ export const JournalProvider = ({ children }) => {
       entries,
       addEntry,
       toggleStatus,
+      deleteEntry, // Exponemos el método a las pantallas
       lists,
       addList,
       reorderLists,

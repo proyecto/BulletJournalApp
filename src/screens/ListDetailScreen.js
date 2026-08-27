@@ -14,7 +14,7 @@
  */
 
 import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, FlatList } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +29,7 @@ export default function ListDetailScreen({ route, navigation }) {
 
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
   const { theme, language, timezone } = useSettings();
-  const { entries, toggleStatus, addEntry } = useJournal();
+  const { entries, toggleStatus, addEntry, deleteEntry } = useJournal();
   const insets = useSafeAreaInsets();
 
   /** Texto que el usuario está escribiendo en el SmartInput */
@@ -59,6 +59,23 @@ export default function ListDetailScreen({ route, navigation }) {
     setInputText('');
   };
 
+  /**
+   * Muestra un diálogo de confirmación para eliminar un elemento de la lista.
+   * @param {string} id - El ID del elemento a eliminar.
+   */
+  const confirmDeleteItem = (id) => {
+    Alert.alert(
+      language === 'es' ? 'Eliminar elemento' : 'Delete item',
+      language === 'es' 
+        ? '¿Estás seguro de que quieres eliminar este elemento de forma permanente?' 
+        : 'Are you sure you want to delete this item permanently?',
+      [
+        { text: language === 'es' ? 'Cancelar' : 'Cancel', style: 'cancel' },
+        { text: language === 'es' ? 'Eliminar' : 'Delete', style: 'destructive', onPress: () => deleteEntry(id) }
+      ]
+    );
+  };
+
   // ── Renderizado de Items ───────────────────────────────────────────────────────
 
   /**
@@ -70,28 +87,40 @@ export default function ListDetailScreen({ route, navigation }) {
   const renderItem = ({ item }) => {
     const isCompleted = item.status === 'completed';
     return (
-      <TouchableOpacity
-        style={[styles.itemContainer, { borderBottomColor: theme.border }]}
-        onPress={() => toggleStatus(item.id, null)} // null: los items de lista no usan completedAt
-        activeOpacity={0.7}
-      >
-        {/* Bullet: círculo hueco (abierta) o círculo con X (completada) */}
-        <View style={[styles.bullet, { borderColor: theme.text }]}>
-          {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
-        </View>
-
-        {/* Texto del elemento, tachado si está completado */}
-        <Text
-          variant="body"
-          style={[
-            styles.itemText,
-            { color: isCompleted ? theme.textCompleted : theme.text },
-            isCompleted && styles.itemTextCompleted,
-          ]}
+      <View style={[styles.itemContainer, { borderBottomColor: theme.border }]}>
+        <TouchableOpacity
+          style={styles.itemMainArea}
+          onPress={() => toggleStatus(item.id, null)} // null: los items de lista no usan completedAt
+          activeOpacity={0.7}
         >
-          {item.text}
-        </Text>
-      </TouchableOpacity>
+          {/* Bullet: círculo hueco (abierta) o círculo con X (completada) */}
+          <View style={[styles.bullet, { borderColor: theme.text }]}>
+            {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
+          </View>
+
+          {/* Texto del elemento, tachado si está completado */}
+          <Text
+            variant="body"
+            style={[
+              styles.itemText,
+              { color: isCompleted ? theme.textCompleted : theme.text },
+              isCompleted && styles.itemTextCompleted,
+            ]}
+          >
+            {item.text}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Botón de papelera para eliminar */}
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => confirmDeleteItem(item.id)}
+          accessibilityLabel={language === 'es' ? 'Eliminar' : 'Delete'}
+          accessibilityRole="button"
+        >
+          <Ionicons name="trash-outline" size={18} color={theme.error || '#ff3b30'} />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -156,7 +185,9 @@ const styles = StyleSheet.create({
   title:                { letterSpacing: -0.5 },
   subtitle:             { marginTop: 2 },
   listContent:          { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, flexGrow: 1 },
-  itemContainer:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  itemContainer:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  itemMainArea:         { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  deleteButton:         { padding: 8, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
   bullet:               { width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginRight: 12, alignItems: 'center', justifyContent: 'center' },
   itemText:             { flex: 1 },
   itemTextCompleted:    { textDecorationLine: 'line-through' },

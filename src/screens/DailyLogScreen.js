@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  Alert,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +34,7 @@ import { filterEntriesForDay, getEntryIcon, isEntryTemporallyDisplaced } from '.
 
 export default function DailyLogScreen() {
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
-  const { entries, addEntry, toggleStatus } = useJournal();
+  const { entries, addEntry, toggleStatus, deleteEntry } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
 
@@ -103,6 +104,23 @@ export default function DailyLogScreen() {
   };
 
   /**
+   * Muestra un diálogo de confirmación para eliminar un registro del diario.
+   * @param {string} id - El ID de la entrada a eliminar.
+   */
+  const confirmDeleteEntry = (id) => {
+    Alert.alert(
+      language === 'es' ? 'Eliminar registro' : 'Delete entry',
+      language === 'es' 
+        ? '¿Estás seguro de que quieres eliminar este registro de forma permanente?' 
+        : 'Are you sure you want to delete this entry permanently?',
+      [
+        { text: language === 'es' ? 'Cancelar' : 'Cancel', style: 'cancel' },
+        { text: language === 'es' ? 'Eliminar' : 'Delete', style: 'destructive', onPress: () => deleteEntry(id) }
+      ]
+    );
+  };
+
+  /**
    * Callback del DateTimePicker nativo.
    * En Android, el picker se cierra automáticamente al seleccionar una fecha.
    * En iOS (si se implementara), habría que cerrarlo manualmente.
@@ -134,53 +152,66 @@ export default function DailyLogScreen() {
       : (isDisplaced ? theme.primary : theme.text);
 
     return (
-      <TouchableOpacity
+      <View 
         style={[
           styles.card,
           { backgroundColor: theme.cardBackground, shadowColor: theme.text },
           isCompleted && { backgroundColor: theme.cardCompleted },
         ]}
-        onPress={() => toggleStatus(item.id, currentLogDateStr)}
-        // Solo las tareas son interactivas (eventos y notas no se pueden "completar")
-        activeOpacity={item.type === 'task' ? 0.7 : 1}
       >
-        {/* Ícono del tipo/estado de la entrada */}
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name={iconName}
-            size={item.type === 'note' ? 24 : 16}
-            color={iconColor}
-            style={item.type === 'task' && !isCompleted && !isDisplaced ? styles.taskIcon : null}
-          />
-        </View>
+        <TouchableOpacity
+          style={styles.cardMainArea}
+          onPress={() => toggleStatus(item.id, currentLogDateStr)}
+          activeOpacity={item.type === 'task' ? 0.7 : 1}
+        >
+          {/* Ícono del tipo/estado de la entrada */}
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={iconName}
+              size={item.type === 'note' ? 24 : 16}
+              color={iconColor}
+              style={item.type === 'task' && !isCompleted && !isDisplaced ? styles.taskIcon : null}
+            />
+          </View>
 
-        {/* Texto y badge de fecha */}
-        <View style={styles.cardContent}>
-          <Text
-            variant="body"
-            style={[
-              styles.cardText,
-              { color: theme.text },
-              isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' },
-            ]}
-          >
-            {item.text}
-          </Text>
-          {/* Badge de fecha: solo aparece si la entrada está programada para una fecha diferente a hoy */}
-          {item.date !== getFormattedDate(new Date(), timezone) && (
+          {/* Texto y badge de fecha */}
+          <View style={styles.cardContent}>
             <Text
-              variant="micro"
+              variant="body"
               style={[
-                styles.dateBadge,
-                { color: theme.primary, backgroundColor: theme.primaryBackground },
-                isCompleted && { opacity: 0.5 },
+                styles.cardText,
+                { color: theme.text },
+                isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' },
               ]}
             >
-              📅 {item.date}
+              {item.text}
             </Text>
-          )}
-        </View>
-      </TouchableOpacity>
+            {/* Badge de fecha: solo aparece si la entrada está programada para una fecha diferente a hoy */}
+            {item.date !== getFormattedDate(new Date(), timezone) && (
+              <Text
+                variant="micro"
+                style={[
+                  styles.dateBadge,
+                  { color: theme.primary, backgroundColor: theme.primaryBackground },
+                  isCompleted && { opacity: 0.5 },
+                ]}
+              >
+                📅 {item.date}
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {/* Botón de papelera para eliminar */}
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => confirmDeleteEntry(item.id)}
+          accessibilityLabel={language === 'es' ? 'Eliminar' : 'Delete'}
+          accessibilityRole="button"
+        >
+          <Ionicons name="trash-outline" size={18} color={theme.error || '#ff3b30'} />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -309,7 +340,9 @@ const styles = StyleSheet.create({
   title:            { letterSpacing: -0.5 },
   subtitle:         { marginTop: 4, textTransform: 'capitalize' },
   listContent:      { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20 },
-  card:             { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 10, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  card:             { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, marginBottom: 10, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  cardMainArea:     { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  deleteButton:     { padding: 8, marginLeft: 8, justifyContent: 'center', alignItems: 'center' },
   iconContainer:    { width: 24, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   taskIcon:         { transform: [{ scale: 0.8 }] },
   cardContent:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

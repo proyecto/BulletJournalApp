@@ -77,3 +77,12 @@ export const updateEntryStatus = async (id, newStatus, newCompletedAt) => {
 export const deleteEntriesByListId = async (listId) => {
   await db.runAsync('DELETE FROM entries WHERE listId = ?', [listId]);
 };
+
+/**
+ * Elimina una única entrada por su ID.
+ * @param {string} id - ID de la entrada a eliminar.
+ * @returns {Promise<void>}
+ */
+export const deleteEntryById = async (id) => {
+  await db.runAsync('DELETE FROM entries WHERE id = ?', [id]);
+};
