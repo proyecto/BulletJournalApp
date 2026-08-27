@@ -16,6 +16,17 @@ import AdvancedTypographyScreen from '../screens/AdvancedTypographyScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const ListsStack = createNativeStackNavigator();
+
+// Stack interno para la pestaña "Listas" que mantiene visible la barra de navegación
+function ListsStackNavigator() {
+  return (
+    <ListsStack.Navigator screenOptions={{ headerShown: false }}>
+      <ListsStack.Screen name="ListsHome" component={ListsScreen} />
+      <ListsStack.Screen name="ListDetail" component={ListDetailScreen} />
+    </ListsStack.Navigator>
+  );
+}
 
 function BottomTabs() {
   const { theme, language } = useSettings();
@@ -70,8 +81,18 @@ function BottomTabs() {
       />
       <Tab.Screen 
         name="Listas" 
-        component={ListsScreen} 
+        component={ListsStackNavigator} 
         options={{ title: language === 'es' ? 'Listas' : 'Lists' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Prevenir el comportamiento por defecto de React Navigation
+            e.preventDefault();
+            // Forzar navegación al inicio del Stack de listas ("ListsHome")
+            navigation.navigate('Listas', {
+              screen: 'ListsHome',
+            });
+          },
+        })}
       />
       <Tab.Screen 
         name="Ajustes" 
@@ -86,7 +107,6 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={BottomTabs} />
-      <Stack.Screen name="ListDetail" component={ListDetailScreen} />
       <Stack.Screen name="AdvancedTypography" component={AdvancedTypographyScreen} />
     </Stack.Navigator>
   );

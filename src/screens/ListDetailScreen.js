@@ -98,14 +98,7 @@ export default function ListDetailScreen({ route, navigation }) {
   // ── JSX ───────────────────────────────────────────────────────────────────────
 
   return (
-    <View style={[
-      styles.safeArea, 
-      { 
-        backgroundColor: theme.background, 
-        paddingTop: Math.max(insets.top, 30),
-        paddingBottom: Math.max(insets.bottom, 12)
-      }
-    ]}>
+    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
 
       {/* Cabecera con botón de retroceso y título de la lista */}
       <View style={styles.header}>
