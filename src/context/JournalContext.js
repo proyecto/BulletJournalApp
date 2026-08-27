@@ -20,39 +20,9 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import * as EntryRepository from '../repositories/EntryRepository';
 import * as ListRepository from '../repositories/ListRepository';
 import { createList } from '../factories/EntryFactory';
-
-// ─── Utilidades de Fecha ──────────────────────────────────────────────────────
-
-/**
- * Formatea una fecha JavaScript al string 'YYYY-MM-DD' requerido por la BD.
- * Soporta timezones específicos usando la API `Intl.DateTimeFormat`.
- *
- * @param {Date|number} date - La fecha a formatear (Date o timestamp ms).
- * @param {string} [timezone='system'] - El identificador IANA de timezone (ej: 'Europe/Madrid').
- * @returns {string} La fecha en formato 'YYYY-MM-DD'.
- */
-export const getFormattedDate = (date, timezone = 'system') => {
-  if (!timezone || timezone === 'system') {
-    const d = new Date(date);
-    const year  = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day   = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  try {
-    // Intl.DateTimeFormat es la forma nativa y correcta de manejar timezones en JS
-    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
-    return formatter.format(new Date(date));
-  } catch (e) {
-    // Fallback si el timezone no es reconocido por el entorno
-    const d = new Date(date);
-    const year  = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day   = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-};
+// Re-exportamos getFormattedDate desde su módulo utilitario para que los
+// consumidores que ya importaban desde JournalContext sigan funcionando sin cambios.
+export { getFormattedDate } from '../utils/dateUtils';
 
 // ─── Contexto (Observer) ──────────────────────────────────────────────────────
 

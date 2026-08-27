@@ -16,7 +16,11 @@
  *    expresivo que un objeto literal con 7 campos.
  */
 
-import { getFormattedDate } from '../context/JournalContext';
+// Importamos desde el módulo utilitario directo, NO desde JournalContext,
+// para evitar la dependencia circular:
+// JournalContext → EntryFactory → JournalContext ✗
+// JournalContext → EntryFactory → dateUtils      ✓
+import { getFormattedDate } from '../utils/dateUtils';
 
 /**
  * Genera un ID único basado en el timestamp actual.
