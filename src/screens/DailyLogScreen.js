@@ -222,6 +222,7 @@ export default function DailyLogScreen() {
 
       {/* Lista de entradas del día */}
       <FlatList
+        style={{ flex: 1 }}
         data={dailyLogEntries}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}

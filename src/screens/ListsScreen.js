@@ -96,29 +96,31 @@ export default function ListsScreen({ navigation }) {
         </Text>
       </View>
 
-      <DragList
-        data={lists}
-        keyExtractor={(item) => item.id}
-        onReordered={async (fromIndex, toIndex) => {
-          const newLists = [...lists];
-          const temp = newLists.splice(fromIndex, 1)[0];
-          newLists.splice(toIndex, 0, temp);
-          reorderLists(newLists);
-        }}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="list" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
-            <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
-              {language === 'es' 
-                ? 'Aquí podrás crear tus propias colecciones personalizadas (libros, películas, notas).' 
-                : 'Here you will be able to create custom collections (books, movies, notes).'}
-            </Text>
-          </View>
-        }
-      />
+      <View style={{ flex: 1 }}>
+        <DragList
+          data={lists}
+          keyExtractor={(item) => item.id}
+          onReordered={async (fromIndex, toIndex) => {
+            const newLists = [...lists];
+            const temp = newLists.splice(fromIndex, 1)[0];
+            newLists.splice(toIndex, 0, temp);
+            reorderLists(newLists);
+          }}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="list" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
+              <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
+                {language === 'es' 
+                  ? 'Aquí podrás crear tus propias colecciones personalizadas (libros, películas, notas).' 
+                  : 'Here you will be able to create custom collections (books, movies, notes).'}
+              </Text>
+            </View>
+          }
+        />
+      </View>
 
       <SmartInput 
         value={inputText}

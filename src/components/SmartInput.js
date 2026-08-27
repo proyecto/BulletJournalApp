@@ -24,7 +24,7 @@
  * @prop {React.ReactNode} [leftContent]- Contenido opcional a la izquierda del input (ej: calendario).
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -34,6 +34,7 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
@@ -50,6 +51,33 @@ export default function SmartInput({
   const { theme, language } = useSettings();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const inputRef = useRef(null);
+  const ignoreKeyboardHideRef = useRef(false);
+
+  /**
+   * Escucha el evento de cierre del teclado nativo.
+   * Si el teclado se oculta (por ejemplo, porque el usuario pulsó el botón
+   * "Atrás" de Android), cerramos automáticamente el modal.
+   * 
+   * Excepción: Si se levantó la bandera `ignoreKeyboardHideRef` (porque el usuario
+   * interactuó con los botones de tipo o el calendario), ignoramos ese cierre
+   * para mantener el modal visible (ya que al abrir diálogos como el datepicker
+   * el teclado se cierra temporalmente).
+   */
+  useEffect(() => {
+    const hideListener = Keyboard.addListener('keyboardDidHide', () => {
+      if (ignoreKeyboardHideRef.current) {
+        // Consumimos la bandera y la reseteamos para la siguiente interacción
+        ignoreKeyboardHideRef.current = false;
+      } else {
+        // Cierre automático del modal al ocultar el teclado
+        setIsModalOpen(false);
+      }
+    });
+
+    return () => {
+      hideListener.remove();
+    };
+  }, []);
 
   /**
    * Abre el Modal.
@@ -108,10 +136,13 @@ export default function SmartInput({
             </View>
           )}
 
-          {/* Caja que simula ser el TextInput */}
+          {/* Caja que simula ser el TextInput (muestra el texto escrito si existe) */}
           <View style={[styles.textInput, { backgroundColor: theme.inputBackground, justifyContent: 'center' }]}>
-            <Text style={{ color: theme.textSecondary, fontSize: 16 }}>
-              {placeholder || (language === 'es' ? 'Escribe aquí...' : 'Type here...')}
+            <Text 
+              style={{ color: value ? theme.text : theme.textSecondary, fontSize: 16 }}
+              numberOfLines={1}
+            >
+              {value || placeholder || (language === 'es' ? 'Escribe aquí...' : 'Type here...')}
             </Text>
           </View>
 
@@ -148,17 +179,23 @@ export default function SmartInput({
                     borderTopColor: theme.border,
                   }
                 ]}>
-                  {/* Selector de Tipo (si existe, ej: tareas/eventos/notas en DailyLog) */}
+                  {/* Selector de Tipo: levantar bandera ignoreKeyboard al tocar para que no se cierre el modal */}
                   {topContent && (
-                    <View style={styles.topContentContainer}>
+                    <View 
+                      style={styles.topContentContainer}
+                      onTouchStart={() => { ignoreKeyboardHideRef.current = true; }}
+                    >
                       {topContent}
                     </View>
                   )}
 
                   <View style={styles.inputContainer}>
-                    {/* Control Izquierdo Activo (ej: Calendario) */}
+                    {/* Control Izquierdo: levantar bandera ignoreKeyboard al tocar */}
                     {leftContent && (
-                      <View style={styles.leftContentContainer}>
+                      <View 
+                        style={styles.leftContentContainer}
+                        onTouchStart={() => { ignoreKeyboardHideRef.current = true; }}
+                      >
                         {leftContent}
                       </View>
                     )}

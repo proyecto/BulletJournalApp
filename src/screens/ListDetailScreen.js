@@ -98,7 +98,14 @@ export default function ListDetailScreen({ route, navigation }) {
   // ── JSX ───────────────────────────────────────────────────────────────────────
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
+    <View style={[
+      styles.safeArea, 
+      { 
+        backgroundColor: theme.background, 
+        paddingTop: Math.max(insets.top, 30),
+        paddingBottom: Math.max(insets.bottom, 12)
+      }
+    ]}>
 
       {/* Cabecera con botón de retroceso y título de la lista */}
       <View style={styles.header}>
@@ -117,6 +124,7 @@ export default function ListDetailScreen({ route, navigation }) {
 
       {/* Lista de elementos */}
       <FlatList
+        style={{ flex: 1 }}
         data={listItems}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
