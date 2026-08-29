@@ -192,6 +192,24 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Actualiza la fecha de una entrada (usado para migración).
+   *
+   * @param {string} id - El ID de la entrada a modificar.
+   * @param {string} newDate - La nueva fecha ('YYYY-MM-DD' o 'YYYY-MM').
+   */
+  const updateEntryDate = async (id, newDate) => {
+    try {
+      await EntryRepository.updateEntryDate(id, newDate);
+      // Actualización inmutable del estado
+      setEntries(prev =>
+        prev.map(entry => entry.id === id ? { ...entry, date: newDate } : entry)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al actualizar fecha de entrada:', e);
+    }
+  };
+
   // Mientras los datos de SQLite no se han cargado, no renderizamos nada.
   // Esto evita un flash de contenido vacío al arrancar la app.
   if (!isLoaded) return null;
@@ -202,6 +220,7 @@ export const JournalProvider = ({ children }) => {
       addEntry,
       toggleStatus,
       deleteEntry, // Exponemos el método a las pantallas
+      updateEntryDate, // Exponemos el método de migración
       lists,
       addList,
       reorderLists,

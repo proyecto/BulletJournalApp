@@ -36,52 +36,63 @@ export default function ListsScreen({ navigation }) {
   };
 
   const renderItem = ({ item, onDragStart, onDragEnd, isActive }) => (
-    <TouchableOpacity 
-      style={[
-        styles.card, 
-        { 
-          backgroundColor: theme.cardBackground, 
-          shadowColor: theme.text,
-          elevation: isActive ? 5 : 1,
-          shadowOpacity: isActive ? 0.2 : 0.03,
-          opacity: isActive ? 0.9 : 1,
-        }
-      ]}
-      activeOpacity={0.7}
-      onPress={() => navigation.navigate('ListDetail', { list: item })}
-      disabled={isActive}
-    >
-      <View style={styles.iconContainer}>
-        <Ionicons name="list" size={20} color={theme.textSecondary} />
-      </View>
-      <Text variant="body" style={[styles.cardText, { color: theme.text }]}>
-        {item.title}
-      </Text>
-      
-      <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => confirmDelete(item.id, item.title)}
+    <View style={styles.itemWrapper}>
+      <View 
+        style={[
+          styles.card, 
+          { 
+            backgroundColor: theme.cardBackground, 
+            shadowColor: theme.text,
+            elevation: isActive ? 6 : 1,
+            shadowOpacity: isActive ? 0.25 : 0.03,
+            opacity: isActive ? 0.9 : 1,
+          }
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.cardMainArea}
+          onPress={() => navigation.navigate('ListDetail', { list: item })}
+          activeOpacity={0.7}
+          disabled={isActive}
         >
-          <Ionicons 
-            name="trash-outline" 
-            size={20} 
-            color={theme.error || '#ff3b30'} 
-          />
+          <View style={styles.iconContainer}>
+            <Ionicons name="list" size={20} color={theme.textSecondary} />
+          </View>
+          <Text variant="body" style={[styles.cardText, { color: theme.text }]} numberOfLines={1}>
+            {item.title}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.iconButton, { marginLeft: 8 }]}
-          onPressIn={onDragStart}
-          onPressOut={onDragEnd}
-        >
-          <Ionicons 
-            name="menu" 
-            size={24} 
-            color={theme.textSecondary} 
-          />
-        </TouchableOpacity>
+        
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => confirmDelete(item.id, item.title)}
+            accessibilityLabel={language === 'es' ? 'Eliminar listado' : 'Delete list'}
+            accessibilityRole="button"
+            disabled={isActive}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={20} 
+              color={theme.error || '#ff3b30'} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.iconButton, { marginLeft: 8 }]}
+            onPressIn={onDragStart}
+            onPressOut={onDragEnd}
+            accessibilityLabel={language === 'es' ? 'Arrastrar para ordenar' : 'Drag to reorder'}
+            accessibilityRole="button"
+          >
+            <Ionicons 
+              name="menu" 
+              size={24} 
+              color={theme.textSecondary} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -103,7 +114,13 @@ export default function ListsScreen({ navigation }) {
             const newLists = [...lists];
             const temp = newLists.splice(fromIndex, 1)[0];
             newLists.splice(toIndex, 0, temp);
-            reorderLists(newLists);
+            
+            // Await the state update and database update
+            await reorderLists(newLists);
+            
+            // Allow React some time to batch the state update and re-render the list items
+            // before DragList resets its internal drag states.
+            await new Promise((resolve) => setTimeout(resolve, 150));
           }}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
@@ -137,7 +154,9 @@ const styles = StyleSheet.create({
   title: { letterSpacing: -0.5, textAlign: 'center' },
   subtitle: { marginTop: 4, textAlign: 'center' },
   listContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 20, flexGrow: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 10, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  itemWrapper: { paddingBottom: 10 },
+  card: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  cardMainArea: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   iconContainer: { width: 32, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   cardText: { flex: 1 },
   actionButtons: { flexDirection: 'row', alignItems: 'center' },

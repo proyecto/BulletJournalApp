@@ -86,3 +86,17 @@ export const deleteEntriesByListId = async (listId) => {
 export const deleteEntryById = async (id) => {
   await db.runAsync('DELETE FROM entries WHERE id = ?', [id]);
 };
+
+/**
+ * Actualiza la fecha de una entrada.
+ * Se usa para migrar tareas (ej: mover una tarea del mes a un día concreto).
+ * @param {string} id - ID de la entrada.
+ * @param {string} newDate - La nueva fecha en formato 'YYYY-MM-DD' o 'YYYY-MM'.
+ * @returns {Promise<void>}
+ */
+export const updateEntryDate = async (id, newDate) => {
+  await db.runAsync(
+    'UPDATE entries SET date = ? WHERE id = ?',
+    [newDate, id]
+  );
+};

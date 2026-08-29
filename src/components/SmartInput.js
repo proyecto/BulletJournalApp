@@ -47,9 +47,12 @@ export default function SmartInput({
   placeholder,
   topContent,
   leftContent,
+  isModalOpenExternal,
+  onRequestCloseExternal,
 }) {
   const { theme, language } = useSettings();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpenInternal, setIsModalOpenInternal] = useState(false);
+  const isModalOpen = isModalOpenExternal !== undefined ? isModalOpenExternal : isModalOpenInternal;
   const inputRef = useRef(null);
   const ignoreKeyboardHideRef = useRef(false);
 
@@ -70,27 +73,37 @@ export default function SmartInput({
         ignoreKeyboardHideRef.current = false;
       } else {
         // Cierre automático del modal al ocultar el teclado
-        setIsModalOpen(false);
+        if (isModalOpenExternal === undefined) {
+          setIsModalOpenInternal(false);
+        } else if (onRequestCloseExternal) {
+          onRequestCloseExternal();
+        }
       }
     });
 
     return () => {
       hideListener.remove();
     };
-  }, []);
+  }, [isModalOpenExternal, onRequestCloseExternal]);
 
   /**
    * Abre el Modal.
    */
   const handleOpenInput = () => {
-    setIsModalOpen(true);
+    if (isModalOpenExternal === undefined) {
+      setIsModalOpenInternal(true);
+    }
   };
 
   /**
    * Cierra el Modal limpiamente.
    */
   const handleCloseInput = () => {
-    setIsModalOpen(false);
+    if (isModalOpenExternal === undefined) {
+      setIsModalOpenInternal(false);
+    } else if (onRequestCloseExternal) {
+      onRequestCloseExternal();
+    }
   };
 
   /**
@@ -113,6 +126,14 @@ export default function SmartInput({
     onSubmit();
     handleCloseInput();
   };
+
+  // En Android confiamos 100% en el comportamiento nativo de redimensionamiento de la ventana
+  // del Modal (adjustResize). El uso de KeyboardAvoidingView en Android causaba un efecto de
+  // "doble evasión" (double avoidance) que empujaba el input completamente fuera de la pantalla.
+  const KeyboardWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+  const keyboardWrapperProps = Platform.OS === 'ios' 
+    ? { behavior: 'padding', style: styles.keyboardAvoidingView } 
+    : { style: styles.keyboardAvoidingView };
 
   return (
     <>
@@ -165,11 +186,8 @@ export default function SmartInput({
         <TouchableWithoutFeedback onPress={handleCloseInput}>
           <View style={styles.modalBackdrop}>
             
-            {/* Contenedor que evita el teclado (KeyboardAvoidingView nativo) */}
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={styles.keyboardAvoidingView}
-            >
+            {/* Contenedor condicional para evitar desfase en Android */}
+            <KeyboardWrapper {...keyboardWrapperProps}>
               {/* Contenedor del Input Real */}
               <TouchableWithoutFeedback>
                 <View style={[
@@ -234,7 +252,7 @@ export default function SmartInput({
                 </View>
               </TouchableWithoutFeedback>
 
-            </KeyboardAvoidingView>
+            </KeyboardWrapper>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
