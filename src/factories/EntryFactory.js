@@ -40,7 +40,7 @@ const generateId = () => Date.now().toString();
  * @param {string} timezone - El timezone del usuario (de SettingsContext).
  * @returns {Object} Un objeto entry listo para ser persistido por EntryRepository.
  */
-export const createDailyEntry = (text, type, date, timezone) => ({
+export const createDailyEntry = (text, type, date, timezone, orderIndex = 0) => ({
   id: generateId(),
   text: text.trim(),
   type,
@@ -48,6 +48,7 @@ export const createDailyEntry = (text, type, date, timezone) => ({
   date: getFormattedDate(date, timezone), // Conversión segura al formato YYYY-MM-DD
   completedAt: null,
   listId: null, // Las entradas del Daily Log no pertenecen a ninguna lista
+  order_index: orderIndex,
 });
 
 /**
@@ -57,9 +58,10 @@ export const createDailyEntry = (text, type, date, timezone) => ({
  * @param {string} text - El texto del elemento de la lista.
  * @param {string} listId - El ID de la lista a la que pertenece este elemento.
  * @param {string} timezone - El timezone del usuario (de SettingsContext).
+ * @param {number} [orderIndex=0] - La posición en el orden de la lista.
  * @returns {Object} Un objeto entry listo para ser persistido por EntryRepository.
  */
-export const createListEntry = (text, listId, timezone) => ({
+export const createListEntry = (text, listId, timezone, orderIndex = 0) => ({
   id: generateId(),
   text: text.trim(),
   type: 'task',   // Los elementos de lista son siempre tareas
@@ -67,6 +69,7 @@ export const createListEntry = (text, listId, timezone) => ({
   date: getFormattedDate(new Date(), timezone), // Fecha de creación = hoy
   completedAt: null,
   listId,          // Asociación con la lista padre
+  order_index: orderIndex,
 });
 
 /**

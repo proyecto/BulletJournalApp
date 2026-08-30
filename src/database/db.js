@@ -60,7 +60,8 @@ export const initDB = () => {
       status TEXT NOT NULL,
       date TEXT NOT NULL,
       completedAt TEXT,
-      listId TEXT
+      listId TEXT,
+      order_index INTEGER DEFAULT 0
     );
 
     -- Tabla de configuración clave-valor para persistir las preferencias del usuario
@@ -69,6 +70,13 @@ export const initDB = () => {
       value TEXT NOT NULL
     );
   `);
+
+  // Migración segura para bases de datos existentes que no tenían la columna order_index en entries
+  try {
+    db.execSync('ALTER TABLE entries ADD COLUMN order_index INTEGER DEFAULT 0;');
+  } catch (e) {
+    // La columna ya existe, se ignora de forma segura
+  }
 };
 
 export default db;

@@ -18,11 +18,11 @@
 import db from '../database/db';
 
 /**
- * Obtiene todas las entradas de la base de datos.
- * @returns {Promise<Array<Object>>} Un array de objetos entry.
+ * Obtiene todas las entradas de la base de datos ordenadas por order_index.
+ * @returns {Promise<Array<Object>>} Un array de objetos entry ordenados.
  */
 export const getAllEntries = async () => {
-  return await db.getAllAsync('SELECT * FROM entries');
+  return await db.getAllAsync('SELECT * FROM entries ORDER BY order_index ASC, id ASC');
 };
 
 /**
@@ -35,11 +35,12 @@ export const getAllEntries = async () => {
  * @param {string} entry.date - Fecha en formato 'YYYY-MM-DD'. OBLIGATORIO.
  * @param {string|null} entry.completedAt - Fecha de completado o null.
  * @param {string|null} entry.listId - ID de la lista padre o null.
+ * @param {number} [entry.order_index] - Posición en el orden de entradas.
  * @returns {Promise<void>}
  */
 export const insertEntry = async (entry) => {
   await db.runAsync(
-    'INSERT INTO entries (id, text, type, status, date, completedAt, listId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
       entry.id,
       entry.text,
@@ -48,7 +49,21 @@ export const insertEntry = async (entry) => {
       entry.date,       // Este campo causaba el error NOT NULL antes de la Factory
       entry.completedAt ?? null,
       entry.listId ?? null,
+      entry.order_index ?? 0,
     ]
+  );
+};
+
+/**
+ * Actualiza el order_index de una entrada.
+ * @param {string} id - ID de la entrada a actualizar.
+ * @param {number} newIndex - El nuevo índice de orden.
+ * @returns {Promise<void>}
+ */
+export const updateEntryOrder = async (id, newIndex) => {
+  await db.runAsync(
+    'UPDATE entries SET order_index = ? WHERE id = ?',
+    [newIndex, id]
   );
 };
 

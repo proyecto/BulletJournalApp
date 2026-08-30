@@ -210,6 +210,32 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Persiste el nuevo orden de un subconjunto de entradas (ej: las del día actual o de una lista).
+   * @param {Array<Object>} reorderedSubset - El array de entradas en su nuevo orden.
+   */
+  const reorderEntries = async (reorderedSubset) => {
+    const reorderedWithIndexes = reorderedSubset.map((item, index) => ({
+      ...item,
+      order_index: index,
+    }));
+    const reorderedIds = new Set(reorderedWithIndexes.map(e => e.id));
+
+    // Actualización optimista del estado
+    setEntries(prev => {
+      const rest = prev.filter(e => !reorderedIds.has(e.id));
+      return [...rest, ...reorderedWithIndexes];
+    });
+
+    try {
+      for (let i = 0; i < reorderedWithIndexes.length; i++) {
+        await EntryRepository.updateEntryOrder(reorderedWithIndexes[i].id, i);
+      }
+    } catch (e) {
+      console.error('[JournalContext] Error al reordenar entradas:', e);
+    }
+  };
+
   // Mientras los datos de SQLite no se han cargado, no renderizamos nada.
   // Esto evita un flash de contenido vacío al arrancar la app.
   if (!isLoaded) return null;
@@ -221,6 +247,7 @@ export const JournalProvider = ({ children }) => {
       toggleStatus,
       deleteEntry, // Exponemos el método a las pantallas
       updateEntryDate, // Exponemos el método de migración
+      reorderEntries, // Exponemos la reordenación de entradas
       lists,
       addList,
       reorderLists,
