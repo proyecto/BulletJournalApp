@@ -8,7 +8,6 @@ import { useSettings } from '../context/SettingsContext';
 
 // Screens
 import DailyLogScreen from '../screens/DailyLogScreen';
-import MonthlyLogScreen from '../screens/MonthlyLogScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import ListsScreen from '../screens/ListsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -44,10 +43,8 @@ function BottomTabs() {
 
           if (route.name === 'Hoy') {
             iconName = focused ? 'journal' : 'journal-outline';
-          } else if (route.name === 'Mensual') {
-            iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Calendario') {
-            iconName = focused ? 'calendar-number' : 'calendar-number-outline';
+            iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Listas') {
             iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'Ajustes') {
@@ -76,11 +73,6 @@ function BottomTabs() {
         name="Hoy" 
         component={DailyLogScreen} 
         options={{ title: language === 'es' ? 'Daily Log' : 'Daily Log' }}
-      />
-      <Tab.Screen 
-        name="Mensual" 
-        component={MonthlyLogScreen} 
-        options={{ title: language === 'es' ? 'Mensual' : 'Monthly' }}
       />
       <Tab.Screen 
         name="Calendario" 

@@ -80,21 +80,3 @@ export const createList = (title, orderIndex) => ({
   title: title.trim(),
   order_index: orderIndex,
 });
-
-/**
- * Crea un objeto entrada válido para las tareas del Monthly Log.
- * Estas tareas se asocian con un mes ('YYYY-MM') en lugar de un día concreto.
- * 
- * @param {string} text - El texto de la tarea.
- * @param {string} monthStr - El mes en formato YYYY-MM.
- * @returns {Object} Un objeto entry de tipo task listo para SQLite.
- */
-export const createMonthlyTask = (text, monthStr) => ({
-  id: generateId(),
-  text: text.trim(),
-  type: 'task',
-  status: 'open',
-  date: monthStr, // ej: "2026-08"
-  completedAt: null,
-  listId: null,
-});
