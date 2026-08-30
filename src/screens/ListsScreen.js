@@ -28,25 +28,36 @@ export default function ListsScreen({ navigation }) {
   const [inputText, setInputText] = useState('');
   const [draggingIndex, setDraggingIndex] = useState(null);
 
+  // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
+  const [orderedLists, setOrderedLists] = useState(lists);
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      Object.values(itemAnimMap).forEach((anim) => {
+        anim.stopAnimation();
+        anim.setValue(0);
+      });
+      setOrderedLists(lists);
+    }
+  }, [lists]);
+
+  // Mapa de valores animados estables vinculados directamente al ID único de cada lista
+  const itemAnimMap = useRef({}).current;
+
+  // Asegurar que cada elemento tenga siempre su propio Animated.Value estable
+  orderedLists.forEach((item) => {
+    if (!itemAnimMap[item.id]) {
+      itemAnimMap[item.id] = new Animated.Value(0);
+    }
+  });
+
   // Referencias para controlar el estado de arrastre sin desfases de closure
   const isDraggingRef = useRef(false);
   const draggingIndexRef = useRef(null);
   const targetIndexRef = useRef(null);
-  const listsRef = useRef(lists);
-  listsRef.current = lists;
-
-  // Valor animado para la tarjeta activa (la que se está arrastrando)
-  const draggedPanY = useRef(new Animated.Value(0)).current;
-
-  // Array de valores animados para los desplazamientos Y de las tarjetas en reposo
-  const itemTranslations = useRef([]);
-
-  // Sincronizar el array de Animated.Values con el número actual de listas
-  if (itemTranslations.current.length !== lists.length) {
-    itemTranslations.current = lists.map(
-      (_, i) => itemTranslations.current[i] || new Animated.Value(0)
-    );
-  }
+  const currentDyRef = useRef(0);
+  const listsRef = useRef(orderedLists);
+  listsRef.current = orderedLists;
 
   const handleAddList = () => {
     if (inputText.trim().length > 0) {
@@ -74,30 +85,29 @@ export default function ListsScreen({ navigation }) {
 
   /**
    * Recalcula y anima las posiciones de todos los slots no arrastrados
-   * abriendo el hueco en 'targetIdx' inmediatamente.
+   * abriendo el hueco en 'targetIdx' inmediatamente mediante cálculo de rango.
    */
   const updateSlots = (fromIdx, toIdx) => {
     const total = listsRef.current.length;
     for (let j = 0; j < total; j++) {
       if (j === fromIdx) continue;
 
-      let targetOffset = 0;
-      if (fromIdx < toIdx) {
-        // Elemento baja: los elementos entre fromIdx+1 y toIdx suben 1 slot
-        if (j > fromIdx && j <= toIdx) {
-          targetOffset = -SLOT_HEIGHT;
-        }
-      } else if (fromIdx > toIdx) {
-        // Elemento sube: los elementos entre toIdx y fromIdx-1 bajan 1 slot
-        if (j >= toIdx && j < fromIdx) {
-          targetOffset = SLOT_HEIGHT;
-        }
-      }
+      const item = listsRef.current[j];
+      if (!item || !itemAnimMap[item.id]) continue;
 
-      Animated.spring(itemTranslations.current[j], {
+      // Rango del elemento entre los restantes (0 .. total-2)
+      const rank = j < fromIdx ? j : j - 1;
+      // Slot asignado cuando el hueco está en toIdx
+      const assignedSlot = rank < toIdx ? rank : rank + 1;
+      // Desplazamiento respecto a su posición de reposo
+      const targetOffset = (assignedSlot - j) * SLOT_HEIGHT;
+
+      // Detener cualquier animación previa para evitar que el spring nativo continúe de fondo
+      itemAnimMap[item.id].stopAnimation();
+      Animated.spring(itemAnimMap[item.id], {
         toValue: targetOffset,
         friction: 8,
-        tension: 70,
+        tension: 80,
         useNativeDriver: true,
       }).start();
     }
@@ -110,53 +120,100 @@ export default function ListsScreen({ navigation }) {
     if (!isDraggingRef.current || draggingIndexRef.current === null) return;
 
     const fromIdx = draggingIndexRef.current;
-    const toIdx = targetIndexRef.current;
+    const toIdx = targetIndexRef.current !== null ? targetIndexRef.current : fromIdx;
+    const draggedItem = listsRef.current[fromIdx];
 
-    // Animar la tarjeta que se arrastra hacia su posición final en el slot
-    const finalSlotDelta = (toIdx - fromIdx) * SLOT_HEIGHT;
+    let finalized = false;
+    const finalize = () => {
+      if (finalized) return;
+      finalized = true;
 
-    Animated.spring(draggedPanY, {
-      toValue: finalSlotDelta,
-      friction: 7,
-      tension: 80,
-      useNativeDriver: true,
-    }).start(() => {
-      // Limpiar y resetear todas las animaciones a 0
-      itemTranslations.current.forEach((anim) => anim.setValue(0));
-      draggedPanY.setValue(0);
+      // 1. Detener todas las animaciones nativas activas y resetear sus valores a 0
+      Object.values(itemAnimMap).forEach((anim) => {
+        anim.stopAnimation();
+        anim.setValue(0);
+      });
+
+      // 2. Si cambió de posición, calculamos y actualizamos el estado local atómicamente
+      if (fromIdx !== toIdx) {
+        const nextLists = [...listsRef.current];
+        const [movedItem] = nextLists.splice(fromIdx, 1);
+        nextLists.splice(toIdx, 0, movedItem);
+
+        // Actualizar el estado local y persistir
+        setOrderedLists(nextLists);
+        reorderLists(nextLists);
+      }
+
+      // 3. Resetear estado de arrastre
+      currentDyRef.current = 0;
       draggingIndexRef.current = null;
       targetIndexRef.current = null;
       isDraggingRef.current = false;
       setDraggingIndex(null);
+    };
 
-      // Si cambió de posición, aplicar reordenación
-      if (fromIdx !== toIdx) {
-        const currentLists = [...listsRef.current];
-        const [movedItem] = currentLists.splice(fromIdx, 1);
-        currentLists.splice(toIdx, 0, movedItem);
-        reorderLists(currentLists);
-      }
+    const finalSlotDelta = (toIdx - fromIdx) * SLOT_HEIGHT;
+    const currentVal = currentDyRef.current || 0;
+
+    // Si apenas se movió del slot objetivo o no existe la tarjeta, finalizar de inmediato
+    if (!draggedItem || !itemAnimMap[draggedItem.id] || Math.abs(currentVal - finalSlotDelta) < 3) {
+      finalize();
+      return;
+    }
+
+    // Temporizador de seguridad: asegura que el estado se libere siempre aunque el native driver no emita callback
+    const safetyTimer = setTimeout(finalize, 250);
+
+    itemAnimMap[draggedItem.id].stopAnimation();
+    Animated.spring(itemAnimMap[draggedItem.id], {
+      toValue: finalSlotDelta,
+      friction: 8,
+      tension: 90,
+      useNativeDriver: true,
+    }).start(() => {
+      clearTimeout(safetyTimer);
+      finalize();
     });
   };
 
   // PanResponders individuales asociados al botón de arrastre de cada fila
   const panResponders = useMemo(() => {
-    return lists.map((_, index) =>
+    return orderedLists.map((item, index) =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
         onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 2,
+        onPanResponderTerminationRequest: () => false, // Impide que ScrollView u otros contenedores aborten el gesto
         onPanResponderGrant: () => {
           isDraggingRef.current = true;
           draggingIndexRef.current = index;
           targetIndexRef.current = index;
-          draggedPanY.setValue(0);
+          currentDyRef.current = 0;
+
+          // Detener animaciones previas en todos los elementos
+          Object.values(itemAnimMap).forEach((anim) => anim.stopAnimation());
+
+          if (itemAnimMap[item.id]) {
+            itemAnimMap[item.id].setValue(0);
+          }
           setDraggingIndex(index);
           updateSlots(index, index);
         },
         onPanResponderMove: (_, gestureState) => {
-          draggedPanY.setValue(gestureState.dy);
           const total = listsRef.current.length;
-          const rawTarget = Math.round(index + gestureState.dy / SLOT_HEIGHT);
+          const minDy = -index * SLOT_HEIGHT;
+          const maxDy = (total - 1 - index) * SLOT_HEIGHT;
+
+          // Clampear el desplazamiento estrictamente dentro del rango de los slots disponibles
+          const clampedDy = Math.max(minDy - 6, Math.min(maxDy + 6, gestureState.dy));
+          currentDyRef.current = clampedDy;
+          if (itemAnimMap[item.id]) {
+            itemAnimMap[item.id].setValue(clampedDy);
+          }
+
+          const rawTarget = Math.round(index + clampedDy / SLOT_HEIGHT);
           const clampedTarget = Math.max(0, Math.min(total - 1, rawTarget));
 
           if (clampedTarget !== targetIndexRef.current) {
@@ -172,7 +229,7 @@ export default function ListsScreen({ navigation }) {
         },
       })
     );
-  }, [lists.length, lists]);
+  }, [orderedLists.length, orderedLists]);
 
   return (
     <View
@@ -196,7 +253,7 @@ export default function ListsScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           scrollEnabled={draggingIndex === null}
         >
-          {lists.length === 0 ? (
+          {orderedLists.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons
                 name="list"
@@ -214,11 +271,9 @@ export default function ListsScreen({ navigation }) {
               </Text>
             </View>
           ) : (
-            lists.map((item, index) => {
+            orderedLists.map((item, index) => {
               const isDragging = draggingIndex === index;
-              const translateY = isDragging
-                ? draggedPanY
-                : itemTranslations.current[index] || 0;
+              const translateY = itemAnimMap[item.id] || 0;
 
               return (
                 <Animated.View
