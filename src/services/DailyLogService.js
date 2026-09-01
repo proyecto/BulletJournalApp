@@ -59,7 +59,15 @@ export const filterEntriesForDay = (allEntries, viewingDateStr, todayStr) => {
       if (entry.status === 'completed' || entry.completedAt) {
         return entry.completedAt === viewingDateStr;
       }
-      // Tareas abiertas: se trasladan día a día hasta el día actual (HOY)
+
+      // Tareas programadas para una fecha futura (entry.date > todayStr):
+      // No salen en el Daily Log de hoy; solo aparecen en el día para el que están programadas.
+      if (entry.date && entry.date > todayStr) {
+        return entry.date === viewingDateStr;
+      }
+
+      // Tareas abiertas cuya fecha ya llegó o pasó (entry.date <= todayStr o sin fecha):
+      // Se trasladan día a día y aparecen exclusivamente en el día actual (HOY).
       return viewingDateStr === todayStr;
     }
 

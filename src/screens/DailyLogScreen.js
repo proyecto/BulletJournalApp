@@ -15,11 +15,13 @@ import {
   ScrollView,
   Animated,
   PanResponder,
+  Platform,
   Alert,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import CustomDatePickerModal from '../components/CustomDatePickerModal';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import SmartInput from '../components/SmartInput';
@@ -40,6 +42,8 @@ export default function DailyLogScreen() {
   // ── Estado local de la pantalla ──────────────────────────────────────────────
   const [inputText, setInputText] = useState('');
   const [selectedType, setSelectedType] = useState('task');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentLogDate, setCurrentLogDate] = useState(new Date());
   const [draggingIndex, setDraggingIndex] = useState(null);
 
@@ -52,6 +56,10 @@ export default function DailyLogScreen() {
 
   // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
   const [orderedEntries, setOrderedEntries] = useState(dailyLogEntries);
+
+  useEffect(() => {
+    setSelectedDate(currentLogDate);
+  }, [currentLogDate]);
 
   useEffect(() => {
     if (!isDraggingRef.current) {
@@ -96,14 +104,15 @@ export default function DailyLogScreen() {
     const newEntry = createDailyEntry(
       inputText,
       selectedType,
-      currentLogDate,
+      selectedDate,
       timezone,
       orderedEntries.length
     );
     addEntry(newEntry);
 
-    // Reset del texto del input
+    // Reset del texto del input y de la fecha seleccionada
     setInputText('');
+    setSelectedDate(currentLogDate);
   };
 
   const confirmDeleteEntry = (id) => {
@@ -449,6 +458,31 @@ export default function DailyLogScreen() {
             </TouchableOpacity>
           </>
         }
+        leftContent={
+          <TouchableOpacity
+            style={styles.calendarButton}
+            onPress={() => setShowDatePicker(true)}
+            accessibilityLabel={language === 'es' ? 'Seleccionar fecha' : 'Select date'}
+          >
+            <Ionicons
+              name="calendar"
+              size={22}
+              color={
+                getFormattedDate(selectedDate, timezone) !== currentLogDateStr
+                  ? theme.primary
+                  : theme.textSecondary
+              }
+            />
+          </TouchableOpacity>
+        }
+      />
+
+      {/* Modal selector de fecha personalizado estilo Bottom Sheet */}
+      <CustomDatePickerModal
+        visible={showDatePicker}
+        selectedDate={selectedDate}
+        onSelectDate={(date) => setSelectedDate(date)}
+        onClose={() => setShowDatePicker(false)}
       />
     </View>
   );
@@ -523,5 +557,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
+  calendarButton: { padding: 4 },
 });
 

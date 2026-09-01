@@ -45,7 +45,11 @@ export default function CalendarScreen() {
       if (entry.status === 'completed' && entry.completedAt) {
         marks[entry.completedAt] = { textColor: theme.primary };
       } else if (entry.status === 'open' && entry.type === 'task') {
-        marks[today] = { textColor: theme.primary };
+        if (entry.date && entry.date > today) {
+          marks[entry.date] = { textColor: theme.primary };
+        } else {
+          marks[today] = { textColor: theme.primary };
+        }
       } else if (entry.date) {
         marks[entry.date] = { textColor: theme.primary };
       }
