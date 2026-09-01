@@ -45,7 +45,7 @@ export const createDailyEntry = (text, type, date, timezone, orderIndex = 0) => 
   text: text.trim(),
   type,
   status: 'open',
-  date: getFormattedDate(date, timezone), // Conversión segura al formato YYYY-MM-DD
+  date: getFormattedDate(date || new Date(), timezone),
   completedAt: null,
   listId: null, // Las entradas del Daily Log no pertenecen a ninguna lista
   order_index: orderIndex,

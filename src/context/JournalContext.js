@@ -160,7 +160,7 @@ export const JournalProvider = ({ children }) => {
    */
   const toggleStatus = async (id, currentLogDate) => {
     const entry = entries.find(e => e.id === id);
-    if (!entry || entry.type !== 'task') return; // Solo las tareas se pueden completar
+    if (!entry || (entry.type !== 'task' && entry.type !== 'event')) return;
 
     const isCompleting    = entry.status === 'open';
     const newStatus       = isCompleting ? 'completed' : 'open';

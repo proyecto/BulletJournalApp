@@ -2,9 +2,9 @@
  * @screen DailyLogScreen
  * @description Pantalla principal del Bullet Journal: el "Daily Log".
  *
- * Muestra las entradas del día seleccionado, aplica las reglas de migración
- * del Bullet Journal (via DailyLogService), permite añadir nuevas entradas
- * y reordenarlas mediante el sistema de slots animados deterministas.
+ * Muestra las entradas del día seleccionado, aplica el traspaso automático
+ * de tareas abiertas a HOY, registra la fecha de completado en el historial,
+ * permite añadir nuevas entradas y reordenarlas mediante slots animados.
  */
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
@@ -15,18 +15,16 @@ import {
   ScrollView,
   Animated,
   PanResponder,
-  Platform,
   Alert,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import SmartInput from '../components/SmartInput';
 import { createDailyEntry } from '../factories/EntryFactory';
-import { filterEntriesForDay, getEntryIcon, isEntryTemporallyDisplaced } from '../services/DailyLogService';
+import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
 
 // Dimensiones fijas de cada "slot" para cálculo matemático perfecto
 const CARD_HEIGHT = 56;
@@ -42,16 +40,15 @@ export default function DailyLogScreen() {
   // ── Estado local de la pantalla ──────────────────────────────────────────────
   const [inputText, setInputText] = useState('');
   const [selectedType, setSelectedType] = useState('task');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentLogDate, setCurrentLogDate] = useState(new Date());
   const [draggingIndex, setDraggingIndex] = useState(null);
 
-  // Versión string de la fecha actual del log para comparaciones
+  // Fechas en formato 'YYYY-MM-DD'
+  const todayStr = getFormattedDate(new Date(), timezone);
   const currentLogDateStr = getFormattedDate(currentLogDate, timezone);
 
-  // Entradas filtradas para el día actual
-  const dailyLogEntries = filterEntriesForDay(entries, currentLogDateStr);
+  // Entradas filtradas para el día visualizado
+  const dailyLogEntries = filterEntriesForDay(entries, currentLogDateStr, todayStr);
 
   // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
   const [orderedEntries, setOrderedEntries] = useState(dailyLogEntries);
@@ -64,7 +61,7 @@ export default function DailyLogScreen() {
       });
       setOrderedEntries(dailyLogEntries);
     }
-  }, [entries, currentLogDateStr]);
+  }, [entries, currentLogDateStr, todayStr]);
 
   // Mapa de valores animados estables vinculados directamente al ID único de cada entrada
   const itemAnimMap = useRef({}).current;
@@ -99,15 +96,14 @@ export default function DailyLogScreen() {
     const newEntry = createDailyEntry(
       inputText,
       selectedType,
-      selectedDate,
+      currentLogDate,
       timezone,
       orderedEntries.length
     );
     addEntry(newEntry);
 
-    // Reset del estado del input
+    // Reset del texto del input
     setInputText('');
-    setSelectedDate(new Date());
   };
 
   const confirmDeleteEntry = (id) => {
@@ -125,13 +121,6 @@ export default function DailyLogScreen() {
         },
       ]
     );
-  };
-
-  const onChangeDate = (event, selected) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    if (selected) {
-      setSelectedDate(selected);
-    }
   };
 
   /**
@@ -282,7 +271,7 @@ export default function DailyLogScreen() {
     );
   }, [orderedEntries.length, orderedEntries]);
 
-  const isViewingToday = currentLogDateStr === getFormattedDate(new Date(), timezone);
+  const isViewingToday = currentLogDateStr === todayStr;
 
   return (
     <View
@@ -333,12 +322,9 @@ export default function DailyLogScreen() {
             orderedEntries.map((item, index) => {
               const isDragging = draggingIndex === index;
               const translateY = itemAnimMap[item.id] || 0;
-              const isCompleted = item.status === 'completed';
-              const iconName = getEntryIcon(item, currentLogDateStr, timezone);
-              const isDisplaced = isEntryTemporallyDisplaced(item, currentLogDateStr, timezone);
-              const iconColor = isCompleted
-                ? theme.textCompleted
-                : (isDisplaced ? theme.primary : theme.text);
+              const isCompleted = isEntryCompleted(item, todayStr);
+              const iconName = getEntryIcon(item, todayStr);
+              const iconColor = isCompleted ? theme.textCompleted : theme.text;
 
               return (
                 <Animated.View
@@ -366,9 +352,9 @@ export default function DailyLogScreen() {
                   >
                     <TouchableOpacity
                       style={styles.cardMainArea}
-                      onPress={() => toggleStatus(item.id, currentLogDateStr)}
-                      activeOpacity={item.type === 'task' ? 0.7 : 1}
-                      disabled={draggingIndex !== null}
+                      onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
+                      activeOpacity={item.type === 'note' ? 1 : 0.7}
+                      disabled={draggingIndex !== null || item.type === 'note'}
                     >
                       {/* Ícono del tipo/estado de la entrada */}
                       <View style={styles.iconContainer}>
@@ -376,11 +362,11 @@ export default function DailyLogScreen() {
                           name={iconName}
                           size={item.type === 'note' ? 24 : 16}
                           color={iconColor}
-                          style={item.type === 'task' && !isCompleted && !isDisplaced ? styles.taskIcon : null}
+                          style={item.type === 'task' && !isCompleted ? styles.taskIcon : null}
                         />
                       </View>
 
-                      {/* Texto y badge de fecha */}
+                      {/* Texto de la entrada */}
                       <View style={styles.cardContent}>
                         <Text
                           variant="body"
@@ -393,18 +379,6 @@ export default function DailyLogScreen() {
                         >
                           {item.text}
                         </Text>
-                        {item.date !== getFormattedDate(new Date(), timezone) && (
-                          <Text
-                            variant="micro"
-                            style={[
-                              styles.dateBadge,
-                              { color: theme.primary, backgroundColor: theme.primaryBackground },
-                              isCompleted && { opacity: 0.5 },
-                            ]}
-                          >
-                            📅 {item.date}
-                          </Text>
-                        )}
                       </View>
                     </TouchableOpacity>
 
@@ -444,7 +418,7 @@ export default function DailyLogScreen() {
         </ScrollView>
       </View>
 
-      {/* Input reutilizable con selector de tipo y botón de calendario */}
+      {/* Input reutilizable con selector de tipo */}
       <SmartInput
         value={inputText}
         onChangeText={setInputText}
@@ -475,30 +449,7 @@ export default function DailyLogScreen() {
             </TouchableOpacity>
           </>
         }
-        leftContent={
-          <TouchableOpacity style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
-            <Ionicons
-              name="calendar"
-              size={22}
-              color={
-                getFormattedDate(selectedDate, timezone) !== getFormattedDate(new Date(), timezone)
-                  ? theme.primary
-                  : theme.textSecondary
-              }
-            />
-          </TouchableOpacity>
-        }
       />
-
-      {/* DateTimePicker nativo de Android */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={onChangeDate}
-        />
-      )}
     </View>
   );
 }
@@ -550,13 +501,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardText: { flex: 1 },
-  dateBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginLeft: 8,
-  },
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   iconButton: { padding: 8, marginLeft: 2 },
   dragHandle: {
@@ -579,5 +523,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
-  calendarButton: { padding: 4 },
 });
+

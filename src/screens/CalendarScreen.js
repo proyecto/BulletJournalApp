@@ -6,6 +6,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
+import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
 
 // Configurar el idioma del calendario
 LocaleConfig.locales['es'] = {
@@ -27,7 +28,8 @@ export default function CalendarScreen() {
   const { entries, toggleStatus } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState(getFormattedDate(new Date(), timezone));
+  const today = getFormattedDate(new Date(), timezone);
+  const [selectedDate, setSelectedDate] = useState(today);
 
   useEffect(() => {
     LocaleConfig.defaultLocale = language;
@@ -35,13 +37,17 @@ export default function CalendarScreen() {
 
   const markedDates = useMemo(() => {
     const marks = {};
-    const today = getFormattedDate(new Date(), timezone);
     
-    // 1. Poner el texto en azul para los días que tienen tareas
+    // 1. Poner el texto en azul para los días que tienen tareas/eventos
     entries.forEach(entry => {
-      const targetDate = (entry.status === 'completed' && entry.completedAt) ? entry.completedAt : entry.date;
-      if (targetDate) {
-        marks[targetDate] = { textColor: theme.primary };
+      if (entry.listId) return;
+
+      if (entry.status === 'completed' && entry.completedAt) {
+        marks[entry.completedAt] = { textColor: theme.primary };
+      } else if (entry.status === 'open' && entry.type === 'task') {
+        marks[today] = { textColor: theme.primary };
+      } else if (entry.date) {
+        marks[entry.date] = { textColor: theme.primary };
       }
     });
 
@@ -70,43 +76,34 @@ export default function CalendarScreen() {
     }
 
     return marks;
-  }, [entries, selectedDate, theme]);
+  }, [entries, selectedDate, theme, today]);
 
-  // Filtrar las tareas para el día seleccionado
+  // Filtrar las entradas para el día seleccionado usando el servicio central
   const selectedEntries = useMemo(() => {
-    return entries.filter(entry => {
-      const targetDate = (entry.status === 'completed' && entry.completedAt) ? entry.completedAt : entry.date;
-      return targetDate === selectedDate;
-    });
-  }, [entries, selectedDate]);
+    return filterEntriesForDay(entries, selectedDate, today);
+  }, [entries, selectedDate, today]);
 
   const renderItem = ({ item }) => {
-    const isCompleted = item.status === 'completed';
-    // Comprobar si se programó explícitamente para otro día distinto al de su creación
-    const creationDate = getFormattedDate(new Date(parseInt(item.id)), timezone);
-    const isScheduled = item.date !== creationDate;
+    const isCompleted = isEntryCompleted(item, today);
+    const iconName = getEntryIcon(item, today);
 
     return (
       <TouchableOpacity 
         style={[styles.itemContainer, { backgroundColor: theme.cardBackground }]}
-        onPress={() => toggleStatus(item.id, selectedDate)}
-        activeOpacity={item.type === 'task' ? 0.7 : 1}
+        onPress={() => item.type !== 'note' && toggleStatus(item.id, selectedDate)}
+        activeOpacity={item.type === 'note' ? 1 : 0.7}
+        disabled={item.type === 'note'}
       >
         <View style={styles.iconContainer}>
           <Ionicons 
-            name={item.type === 'task' ? (isCompleted ? 'close' : 'ellipse') : item.type === 'event' ? 'ellipse-outline' : 'remove'} 
-            size={14} 
+            name={iconName} 
+            size={item.type === 'note' ? 20 : 14} 
             color={isCompleted ? theme.textCompleted : theme.text} 
           />
         </View>
         <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
           {item.text}
         </Text>
-        {isScheduled && (
-          <Text variant="micro" style={[styles.dateBadge, { color: theme.primary, backgroundColor: theme.primaryBackground }, isCompleted && { opacity: 0.5 }]}>
-            📅 {language === 'es' ? 'Prog.' : 'Sch.'}
-          </Text>
-        )}
       </TouchableOpacity>
     );
   };
@@ -150,7 +147,7 @@ export default function CalendarScreen() {
       
       <View style={styles.listHeader}>
         <Text variant="h2" style={[styles.listTitle, { color: theme.text }]}>
-          {selectedDate === getFormattedDate(new Date()) ? (language === 'es' ? 'Hoy' : 'Today') : selectedDate}
+          {selectedDate === today ? (language === 'es' ? 'Hoy' : 'Today') : selectedDate}
         </Text>
       </View>
 
@@ -163,7 +160,7 @@ export default function CalendarScreen() {
         ListEmptyComponent={
           <View style={styles.emptyDate}>
             <Text variant="body" style={[styles.emptyDateText, { color: theme.textSecondary }]}>
-              {language === 'es' ? 'Nada programado para este día.' : 'Nothing scheduled for this day.'}
+              {language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.'}
             </Text>
           </View>
         }
