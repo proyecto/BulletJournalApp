@@ -41,12 +41,21 @@ export default function CustomDatePickerModal({
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
 
+  // Función segura para parsear cadenas 'YYYY-MM-DD' o Date objects sin desfase de huso horario
+  const parseSafeDate = (val) => {
+    if (!val) return new Date();
+    if (val instanceof Date) return val;
+    if (typeof val === 'string' && val.includes('-')) {
+      const parts = val.split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+      }
+    }
+    return new Date(val);
+  };
+
   // Fecha temporal seleccionada dentro del modal
-  const initialDate = useMemo(() => {
-    if (!selectedDate) return new Date();
-    if (selectedDate instanceof Date) return selectedDate;
-    return new Date(selectedDate);
-  }, [selectedDate]);
+  const initialDate = useMemo(() => parseSafeDate(selectedDate), [selectedDate]);
 
   const [tempDate, setTempDate] = useState(initialDate);
   // Mes y año visualizados en el calendario (1er día de ese mes)
@@ -54,7 +63,7 @@ export default function CustomDatePickerModal({
 
   useEffect(() => {
     if (visible) {
-      const d = selectedDate instanceof Date ? selectedDate : (selectedDate ? new Date(selectedDate) : new Date());
+      const d = parseSafeDate(selectedDate);
       setTempDate(d);
       setViewingMonth(new Date(d.getFullYear(), d.getMonth(), 1));
     }

@@ -35,7 +35,7 @@ const SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP;
 
 export default function DailyLogScreen() {
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
-  const { entries, addEntry, toggleStatus, deleteEntry, reorderEntries } = useJournal();
+  const { entries, addEntry, toggleStatus, deleteEntry, updateEntryDate, reorderEntries } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
 
@@ -44,6 +44,7 @@ export default function DailyLogScreen() {
   const [selectedType, setSelectedType] = useState('task');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [reschedulingItem, setReschedulingItem] = useState(null);
   const [currentLogDate, setCurrentLogDate] = useState(new Date());
   const [draggingIndex, setDraggingIndex] = useState(null);
 
@@ -113,6 +114,17 @@ export default function DailyLogScreen() {
     // Reset del texto del input y de la fecha seleccionada
     setInputText('');
     setSelectedDate(currentLogDate);
+  };
+
+  const handleOpenDatePickerForItem = (item) => {
+    setReschedulingItem(item);
+  };
+
+  const handleMoveEntryDate = (newDate) => {
+    if (!reschedulingItem) return;
+    const newDateStr = getFormattedDate(newDate, timezone);
+    updateEntryDate(reschedulingItem.id, newDateStr);
+    setReschedulingItem(null);
   };
 
   const confirmDeleteEntry = (id) => {
@@ -362,8 +374,10 @@ export default function DailyLogScreen() {
                     <TouchableOpacity
                       style={styles.cardMainArea}
                       onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
-                      activeOpacity={item.type === 'note' ? 1 : 0.7}
-                      disabled={draggingIndex !== null || item.type === 'note'}
+                      onLongPress={() => handleOpenDatePickerForItem(item)}
+                      delayLongPress={350}
+                      activeOpacity={0.7}
+                      disabled={draggingIndex !== null}
                     >
                       {/* Ícono del tipo/estado de la entrada */}
                       <View style={styles.iconContainer}>
@@ -477,12 +491,20 @@ export default function DailyLogScreen() {
         }
       />
 
-      {/* Modal selector de fecha personalizado estilo Bottom Sheet */}
+      {/* Modal selector de fecha para crear nueva entrada */}
       <CustomDatePickerModal
         visible={showDatePicker}
         selectedDate={selectedDate}
         onSelectDate={(date) => setSelectedDate(date)}
         onClose={() => setShowDatePicker(false)}
+      />
+
+      {/* Modal selector de fecha para MOVER una entrada existente al hacer pulsación prolongada */}
+      <CustomDatePickerModal
+        visible={!!reschedulingItem}
+        selectedDate={reschedulingItem?.date || currentLogDateStr}
+        onSelectDate={handleMoveEntryDate}
+        onClose={() => setReschedulingItem(null)}
       />
     </View>
   );

@@ -6,6 +6,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
+import CustomDatePickerModal from '../components/CustomDatePickerModal';
 import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
 
 // Configurar el idioma del calendario
@@ -25,11 +26,12 @@ LocaleConfig.locales['en'] = {
 };
 
 export default function CalendarScreen() {
-  const { entries, toggleStatus } = useJournal();
+  const { entries, toggleStatus, updateEntryDate } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
   const [selectedDate, setSelectedDate] = useState(today);
+  const [reschedulingItem, setReschedulingItem] = useState(null);
 
   useEffect(() => {
     LocaleConfig.defaultLocale = language;
@@ -95,8 +97,9 @@ export default function CalendarScreen() {
       <TouchableOpacity 
         style={[styles.itemContainer, { backgroundColor: theme.cardBackground }]}
         onPress={() => item.type !== 'note' && toggleStatus(item.id, selectedDate)}
-        activeOpacity={item.type === 'note' ? 1 : 0.7}
-        disabled={item.type === 'note'}
+        onLongPress={() => setReschedulingItem(item)}
+        delayLongPress={350}
+        activeOpacity={0.7}
       >
         <View style={styles.iconContainer}>
           <Ionicons 
@@ -168,6 +171,19 @@ export default function CalendarScreen() {
             </Text>
           </View>
         }
+      />
+
+      {/* Modal selector de fecha para MOVER una entrada al hacer pulsación prolongada */}
+      <CustomDatePickerModal
+        visible={!!reschedulingItem}
+        selectedDate={reschedulingItem?.date || selectedDate}
+        onSelectDate={(newDate) => {
+          if (reschedulingItem) {
+            updateEntryDate(reschedulingItem.id, getFormattedDate(newDate, timezone));
+            setReschedulingItem(null);
+          }
+        }}
+        onClose={() => setReschedulingItem(null)}
       />
     </View>
   );
