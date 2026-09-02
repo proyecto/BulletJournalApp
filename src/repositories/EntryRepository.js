@@ -68,6 +68,23 @@ export const updateEntryOrder = async (id, newIndex) => {
 };
 
 /**
+ * Actualiza el order_index de múltiples entradas en una única transacción.
+ * Resuelve el problema de N+1 queries al reordenar entradas.
+ * @param {Array<{id: string, index: number}>} newOrder - Array con IDs y sus nuevos índices.
+ * @returns {Promise<void>}
+ */
+export const updateEntryOrdersBatch = async (newOrder) => {
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const item of newOrder) {
+      await txn.runAsync(
+        'UPDATE entries SET order_index = ? WHERE id = ?',
+        [item.index, item.id]
+      );
+    }
+  });
+};
+
+/**
  * Actualiza el estado y la fecha de completado de una entrada.
  * Se usa cuando el usuario pulsa sobre una tarea para marcarla como hecha/pendiente.
  * @param {string} id - ID de la entrada a actualizar.
