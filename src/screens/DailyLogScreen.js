@@ -48,7 +48,9 @@ export default function DailyLogScreen() {
   const currentLogDateStr = getFormattedDate(currentLogDate, timezone);
 
   // Entradas filtradas para el día visualizado
-  const dailyLogEntries = filterEntriesForDay(entries, currentLogDateStr, todayStr);
+  const dailyLogEntries = useMemo(() => {
+    return filterEntriesForDay(entries, currentLogDateStr, todayStr);
+  }, [entries, currentLogDateStr, todayStr]);
 
   // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
   const [orderedEntries, setOrderedEntries] = useState(dailyLogEntries);
