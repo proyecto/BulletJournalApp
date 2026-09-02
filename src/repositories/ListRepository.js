@@ -48,6 +48,23 @@ export const updateListOrder = async (id, newIndex) => {
 };
 
 /**
+ * Actualiza el `order_index` de múltiples listas en una sola transacción.
+ * Optimiza significativamente el rendimiento tras un drag & drop.
+ * @param {Array<{id: string, newIndex: number}>} updates - Array de objetos con el id y el nuevo índice.
+ * @returns {Promise<void>}
+ */
+export const updateListsOrderTransaction = async (updates) => {
+  await db.withTransactionAsync(async () => {
+    for (const update of updates) {
+      await db.runAsync(
+        'UPDATE lists SET order_index = ? WHERE id = ?',
+        [update.newIndex, update.id]
+      );
+    }
+  });
+};
+
+/**
  * Elimina una lista de la base de datos por su ID.
  * IMPORTANTE: Llamar a `EntryRepository.deleteEntriesByListId` ANTES de esto
  * para mantener la integridad referencial.
