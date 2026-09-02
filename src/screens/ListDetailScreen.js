@@ -43,7 +43,7 @@ export default function ListDetailScreen({ route, navigation }) {
   const [draggingIndex, setDraggingIndex] = useState(null);
 
   // ── Filtrado de entradas de la lista ──────────────────────────────────────────
-  const listItems = entries.filter((entry) => entry.listId === list.id);
+  const listItems = useMemo(() => entries.filter((entry) => entry.listId === list.id), [entries, list.id]);
 
   // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
   const [orderedItems, setOrderedItems] = useState(listItems);
