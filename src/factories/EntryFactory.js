@@ -21,14 +21,14 @@
 // JournalContext → EntryFactory → JournalContext ✗
 // JournalContext → EntryFactory → dateUtils      ✓
 import { getFormattedDate } from '../utils/dateUtils';
+import * as Crypto from 'expo-crypto';
 
 /**
- * Genera un ID único basado en el timestamp actual.
- * Centralizar la generación de IDs permite cambiar la estrategia en un solo lugar
- * (ej: migrar a UUID en el futuro sin buscar `Date.now()` por toda la app).
- * @returns {string} Un string con el timestamp en ms.
+ * Genera un ID único y seguro usando Crypto.randomUUID().
+ * Centralizar la generación de IDs permite cambiar la estrategia en un solo lugar.
+ * @returns {string} Un string con un UUID v4.
  */
-const generateId = () => Date.now().toString();
+const generateId = () => Crypto.randomUUID();
 
 /**
  * Crea un objeto entrada válido para el Daily Log.
