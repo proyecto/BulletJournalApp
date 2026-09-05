@@ -1,18 +1,50 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText, Alert } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
+import { useJournal } from '../context/JournalContext';
+import { resetDatabase } from '../database/db';
 import { fontOptions } from '../constants/fonts';
 
 export default function SettingsScreen({ navigation }) {
-  const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone, fontFamily, setFontFamily } = useSettings();
+  const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone, fontFamily, setFontFamily, resetSettings } = useSettings();
+  const { resetJournal } = useJournal();
   const insets = useSafeAreaInsets();
   
   const [isFontModalVisible, setFontModalVisible] = useState(false);
 
   const currentFontLabel = fontOptions.find(f => f.id === fontFamily)?.label || fontOptions[0].label;
+
+  const handleFactoryReset = () => {
+    Alert.alert(
+      language === 'es' ? 'Restablecer datos de fábrica' : 'Factory Reset',
+      language === 'es' 
+        ? '¿Estás seguro de que deseas borrar todas las tareas, listas y configuraciones? Esta acción no se puede deshacer.'
+        : 'Are you sure you want to delete all tasks, lists and settings? This action cannot be undone.',
+      [
+        { text: language === 'es' ? 'Cancelar' : 'Cancel', style: 'cancel' },
+        { 
+          text: language === 'es' ? 'Restablecer' : 'Reset', 
+          style: 'destructive',
+          onPress: () => {
+            try {
+              resetDatabase();
+              resetSettings();
+              resetJournal();
+              Alert.alert(
+                language === 'es' ? 'Completado' : 'Success',
+                language === 'es' ? 'La aplicación se ha restablecido a los valores de fábrica.' : 'App has been reset to factory defaults.'
+              );
+            } catch (err) {
+              console.error('Error al restablecer:', err);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const renderSectionHeader = (title) => (
     <Text variant="caption" style={[styles.sectionHeader, { color: theme.textSecondary }]}>{title}</Text>
@@ -61,7 +93,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
 
         {renderSectionHeader(language === 'es' ? 'TIPOGRAFÍA' : 'TYPOGRAPHY')}
-        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border, marginBottom: 40 }]}>
+        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
           <TouchableOpacity 
             style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomColor: theme.border }]} 
             onPress={() => setFontModalVisible(true)}
@@ -86,6 +118,29 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
+        </View>
+
+        {renderSectionHeader(language === 'es' ? 'DATOS Y SISTEMA' : 'DATA & SYSTEM')}
+        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+          <TouchableOpacity 
+            style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomWidth: 0 }]} 
+            onPress={handleFactoryReset}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <Ionicons name="trash-outline" size={20} color="#FF3B30" style={styles.optionIcon} />
+              <Text variant="body" style={[styles.optionLabel, { color: '#FF3B30', fontWeight: '600' }]}>
+                {language === 'es' ? 'Restablecer de fábrica' : 'Factory Reset'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.versionContainer}>
+          <Text variant="caption" style={[styles.versionText, { color: theme.textSecondary }]}>
+            BulletJournalApp v1.0.2 (Build 3)
+          </Text>
         </View>
       </ScrollView>
 
@@ -151,4 +206,6 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: '700' },
   modalOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   modalOptionText: { fontSize: 16 },
+  versionContainer: { alignItems: 'center', marginTop: 24, marginBottom: 40 },
+  versionText: { fontSize: 12, opacity: 0.6 },
 });

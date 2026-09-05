@@ -236,6 +236,11 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  const resetJournal = () => {
+    setEntries([]);
+    setLists([]);
+  };
+
   // Mientras los datos de SQLite no se han cargado, no renderizamos nada.
   // Esto evita un flash de contenido vacío al arrancar la app.
   if (!isLoaded) return null;
@@ -252,6 +257,7 @@ export const JournalProvider = ({ children }) => {
       addList,
       reorderLists,
       deleteList,
+      resetJournal,
     }}>
       {children}
     </JournalContext.Provider>

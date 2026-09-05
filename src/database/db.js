@@ -79,4 +79,15 @@ export const initDB = () => {
   }
 };
 
+/**
+ * Restablece la base de datos completa eliminando todos los registros.
+ */
+export const resetDatabase = () => {
+  db.execSync(`
+    DELETE FROM entries;
+    DELETE FROM lists;
+    DELETE FROM settings;
+  `);
+};
+
 export default db;

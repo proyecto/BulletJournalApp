@@ -183,6 +183,21 @@ export function SettingsProvider({ children }) {
     return themePreference === 'dark' ? darkTheme : lightTheme;
   }, [themePreference, systemColorScheme]);
 
+  const resetSettings = () => {
+    setThemePreferenceState('system');
+    setLanguageState('es');
+    setTimezoneState('Europe/Madrid');
+    setFontFamilyState('system');
+    setTypographyConfigState({
+      h1:      { fontFamily: null, fontSize: 30, fontWeight: '800', color: null },
+      h2:      { fontFamily: null, fontSize: 24, fontWeight: '800', color: null },
+      h3:      { fontFamily: null, fontSize: 20, fontWeight: '700', color: null },
+      body:    { fontFamily: null, fontSize: 16, fontWeight: '500', color: null },
+      caption: { fontFamily: null, fontSize: 13, fontWeight: '600', color: null },
+      micro:   { fontFamily: null, fontSize: 12, fontWeight: '400', color: null },
+    });
+  };
+
   // Esperamos a tener los datos cargados antes de renderizar
   if (!isLoaded) return null;
 
@@ -198,6 +213,7 @@ export function SettingsProvider({ children }) {
       setFontFamily,
       typographyConfig,
       setTypographyConfig,
+      resetSettings,
       theme: activeTheme,
       isDark: activeTheme === darkTheme,
     }}>
