@@ -2,7 +2,7 @@
   "expo": {
     "name": "BulletJournalApp",
     "slug": "BulletJournalApp",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,6 +11,7 @@
     },
     "android": {
       "package": "com.rafael.bulletjournalapp",
+      "versionCode": 2,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
