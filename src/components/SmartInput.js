@@ -1,22 +1,25 @@
 /**
  * @module SmartInput
- * @description Componente de entrada de texto premium reutilizable y directo.
+ * @description Componente de entrada de texto estilo Bottom Sheet Modal para Android e iOS.
  * 
- * Integrado nativamente en el layout de la pantalla con soporte para resize de teclado en Android,
- * selector de tipo de entrada (topContent) y selector de fecha (leftContent).
+ * Muestra una barra visible en la parte inferior de la pantalla. Al pulsarla, abre un Modal
+ * nativo con fondo atenuado y el input flotando exactamente sobre el teclado virtual.
  */
 
-import React, { useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Modal,
+  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
+import { AppText as Text } from './Typography';
 
 export default function SmartInput({
   value,
@@ -27,23 +30,45 @@ export default function SmartInput({
   leftContent,
 }) {
   const { theme, language } = useSettings();
+  const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef(null);
+
+  const handleOpen = () => {
+    setIsOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+  };
+
+  const handleModalShow = () => {
+    // Delay de 60ms para garantizar que el foco nativo se aplique tras el render del Dialog
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 60);
+  };
 
   const handleSubmit = () => {
     if (!value?.trim()) return;
     onSubmit();
+    handleClose();
   };
 
-  const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
-  const wrapperProps = Platform.OS === 'ios'
-    ? { behavior: 'padding', keyboardVerticalOffset: 10 }
-    : {};
+  const KeyboardWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+  const keyboardWrapperProps = Platform.OS === 'ios'
+    ? { behavior: 'padding', style: styles.keyboardAvoidingView }
+    : { style: styles.keyboardAvoidingView };
+
+  const defaultPlaceholder = language === 'es' ? 'Escribe aquí...' : 'Type here...';
 
   return (
-    <Wrapper {...wrapperProps}>
-      <View
+    <>
+      {/* ─── 1. BARRA VISIBLE EN EL LAYOUT (DUMMY) ─── */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handleOpen}
         style={[
-          styles.container,
+          styles.dummyContainer,
           {
             backgroundColor: theme.cardBackground,
             borderTopColor: theme.border,
@@ -63,50 +88,147 @@ export default function SmartInput({
             </View>
           )}
 
-          <TextInput
-            ref={inputRef}
+          <View
             style={[
-              styles.textInput,
+              styles.dummyTextInput,
               {
                 backgroundColor: theme.inputBackground,
-                color: theme.text,
               },
             ]}
-            placeholder={placeholder || (language === 'es' ? 'Escribe aquí...' : 'Type here...')}
-            placeholderTextColor={theme.textSecondary}
-            value={value}
-            onChangeText={onChangeText}
-            onSubmitEditing={handleSubmit}
-            returnKeyType="send"
-          />
+          >
+            <Text
+              style={{
+                color: value ? theme.text : theme.textSecondary,
+                fontSize: 16,
+              }}
+              numberOfLines={1}
+            >
+              {value || placeholder || defaultPlaceholder}
+            </Text>
+          </View>
 
-          <TouchableOpacity
+          <View
             style={[
               styles.sendButton,
-              { backgroundColor: value?.trim() ? theme.text : theme.buttonBackground },
-              value?.trim() ? { elevation: 2 } : null,
+              { backgroundColor: theme.buttonBackground },
             ]}
-            onPress={handleSubmit}
-            disabled={!value?.trim()}
-            activeOpacity={0.7}
           >
             <Ionicons name="arrow-up" size={20} color={theme.cardBackground} />
-          </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </Wrapper>
+      </TouchableOpacity>
+
+      {/* ─── 2. MODAL NATIVO FLOTANTE SOBRE EL TECLADO ─── */}
+      <Modal
+        visible={isOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleClose}
+        onShow={handleModalShow}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.modalBackdrop}>
+            <KeyboardWrapper {...keyboardWrapperProps}>
+              <TouchableWithoutFeedback>
+                <View
+                  style={[
+                    styles.modalInputCard,
+                    {
+                      backgroundColor: theme.cardBackground,
+                      borderTopColor: theme.border,
+                    },
+                  ]}
+                >
+                  {topContent && (
+                    <View style={styles.topContentContainer}>
+                      {topContent}
+                    </View>
+                  )}
+
+                  <View style={styles.inputRow}>
+                    {leftContent && (
+                      <View style={styles.leftContentContainer}>
+                        {leftContent}
+                      </View>
+                    )}
+
+                    <TextInput
+                      ref={inputRef}
+                      style={[
+                        styles.textInput,
+                        {
+                          backgroundColor: theme.inputBackground,
+                          color: theme.text,
+                        },
+                      ]}
+                      placeholder={placeholder || defaultPlaceholder}
+                      placeholderTextColor={theme.textSecondary}
+                      value={value}
+                      onChangeText={onChangeText}
+                      onSubmitEditing={handleSubmit}
+                      returnKeyType="send"
+                    />
+
+                    <TouchableOpacity
+                      style={[
+                        styles.sendButton,
+                        {
+                          backgroundColor: value?.trim()
+                            ? theme.text
+                            : theme.buttonBackground,
+                        },
+                        value?.trim() ? { elevation: 3 } : null,
+                      ]}
+                      onPress={handleSubmit}
+                      disabled={!value?.trim()}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="arrow-up"
+                        size={20}
+                        color={theme.cardBackground}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </KeyboardWrapper>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  dummyContainer: {
     borderTopWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoidingView: {
+    width: '100%',
+  },
+  modalInputCard: {
+    borderTopWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
   topContentContainer: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 10,
     gap: 8,
   },
   inputRow: {
@@ -115,6 +237,13 @@ const styles = StyleSheet.create({
   },
   leftContentContainer: {
     marginRight: 10,
+  },
+  dummyTextInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
   },
   textInput: {
     flex: 1,
