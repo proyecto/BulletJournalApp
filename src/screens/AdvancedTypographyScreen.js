@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +28,11 @@ export default function AdvancedTypographyScreen({ navigation }) {
   const [activeVariant, setActiveVariant] = useState(null);
   const [modalType, setModalType] = useState(null); // 'family', 'size', 'weight', 'color'
   const [tempColor, setTempColor] = useState({ r: 0, g: 0, b: 0 });
+
+  const familyOptions = useMemo(() => [
+    { id: null, label: language === 'es' ? 'Heredar Global' : 'Inherit Global' },
+    ...fontOptions.filter(f => f.id !== 'system')
+  ], [language]);
 
   const openColorModal = (variant) => {
     setActiveVariant(variant);
@@ -175,7 +180,7 @@ export default function AdvancedTypographyScreen({ navigation }) {
             
             {modalType === 'family' && (
               <FlatList
-                data={[{ id: null, label: language === 'es' ? 'Heredar Global' : 'Inherit Global' }, ...fontOptions.filter(f => f.id !== 'system')]}
+                data={familyOptions}
                 keyExtractor={item => item.id || 'inherit'}
                 renderItem={({ item }) => (
                   <TouchableOpacity 
