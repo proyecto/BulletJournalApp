@@ -22,13 +22,17 @@
  * getFormattedDate(new Date(), 'Europe/Madrid') // → '2026-08-27'
  * getFormattedDate(Date.now(), 'system')         // → '2026-08-27'
  */
+const formatFallback = (date) => {
+  const d = new Date(date);
+  const year  = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day   = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const getFormattedDate = (date, timezone = 'system') => {
   if (!timezone || timezone === 'system') {
-    const d = new Date(date);
-    const year  = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day   = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatFallback(date);
   }
 
   try {
@@ -37,10 +41,6 @@ export const getFormattedDate = (date, timezone = 'system') => {
     return formatter.format(new Date(date));
   } catch (e) {
     // Fallback si el timezone no es reconocido por el entorno de JS
-    const d = new Date(date);
-    const year  = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day   = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatFallback(date);
   }
 };
