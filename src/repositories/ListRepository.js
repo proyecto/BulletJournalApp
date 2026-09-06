@@ -35,7 +35,6 @@ export const insertList = async (list) => {
 
 /**
  * Actualiza el `order_index` de una lista.
- * Se llama en bucle tras un drag & drop para persistir el nuevo orden.
  * @param {string} id - ID de la lista a actualizar.
  * @param {number} newIndex - El nuevo índice de orden.
  * @returns {Promise<void>}
@@ -45,6 +44,24 @@ export const updateListOrder = async (id, newIndex) => {
     'UPDATE lists SET order_index = ? WHERE id = ?',
     [newIndex, id]
   );
+};
+
+/**
+ * Actualiza el `order_index` de múltiples listas en una única transacción.
+ * Esto evita el problema de las consultas N+1 durante el reordenamiento.
+ * @param {Array<{id: string, index: number}>} orderUpdates - Array de actualizaciones de orden.
+ * @returns {Promise<void>}
+ */
+export const updateListsOrder = async (orderUpdates) => {
+  await db.withTransactionAsync(async () => {
+    for (const update of orderUpdates) {
+      // Usar 'db.runAsync' con el outer 'db' en el bloque de transacción
+      await db.runAsync(
+        'UPDATE lists SET order_index = ? WHERE id = ?',
+        [update.index, update.id]
+      );
+    }
+  });
 };
 
 /**

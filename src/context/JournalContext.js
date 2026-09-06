@@ -111,6 +111,7 @@ export const JournalProvider = ({ children }) => {
    * Persiste el nuevo orden de las listas tras un drag & drop.
    * Usa una actualización optimista: el estado se actualiza inmediatamente
    * para que la UI sea fluida, y la persistencia ocurre en segundo plano.
+   * Utiliza una transacción para evitar el problema de N+1 consultas.
    *
    * @param {Array<Object>} newOrder - El array de listas en su nuevo orden.
    */
@@ -118,10 +119,9 @@ export const JournalProvider = ({ children }) => {
     // Optimistic update: el usuario ve el cambio inmediatamente
     setLists(newOrder);
     try {
-      // Persistimos cada cambio de orden en la BD secuencialmente
-      for (let i = 0; i < newOrder.length; i++) {
-        await ListRepository.updateListOrder(newOrder[i].id, i);
-      }
+      // Persistimos el nuevo orden en la BD en una única transacción
+      const orderUpdates = newOrder.map((list, i) => ({ id: list.id, index: i }));
+      await ListRepository.updateListsOrder(orderUpdates);
     } catch (e) {
       console.error('[JournalContext] Error al reordenar listas:', e);
     }
@@ -212,6 +212,7 @@ export const JournalProvider = ({ children }) => {
 
   /**
    * Persiste el nuevo orden de un subconjunto de entradas (ej: las del día actual o de una lista).
+   * Utiliza una transacción para evitar consultas N+1 en SQLite.
    * @param {Array<Object>} reorderedSubset - El array de entradas en su nuevo orden.
    */
   const reorderEntries = async (reorderedSubset) => {
@@ -228,9 +229,9 @@ export const JournalProvider = ({ children }) => {
     });
 
     try {
-      for (let i = 0; i < reorderedWithIndexes.length; i++) {
-        await EntryRepository.updateEntryOrder(reorderedWithIndexes[i].id, i);
-      }
+      // Persistimos el nuevo orden en la BD en una única transacción
+      const orderUpdates = reorderedWithIndexes.map((entry, i) => ({ id: entry.id, index: i }));
+      await EntryRepository.updateEntriesOrder(orderUpdates);
     } catch (e) {
       console.error('[JournalContext] Error al reordenar entradas:', e);
     }
