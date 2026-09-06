@@ -118,10 +118,9 @@ export const JournalProvider = ({ children }) => {
     // Optimistic update: el usuario ve el cambio inmediatamente
     setLists(newOrder);
     try {
-      // Persistimos cada cambio de orden en la BD secuencialmente
-      for (let i = 0; i < newOrder.length; i++) {
-        await ListRepository.updateListOrder(newOrder[i].id, i);
-      }
+      // Persistimos cada cambio de orden en la BD en una sola transacción
+      const updates = newOrder.map((list, index) => ({ id: list.id, newIndex: index }));
+      await ListRepository.updateListsOrder(updates);
     } catch (e) {
       console.error('[JournalContext] Error al reordenar listas:', e);
     }
@@ -228,9 +227,8 @@ export const JournalProvider = ({ children }) => {
     });
 
     try {
-      for (let i = 0; i < reorderedWithIndexes.length; i++) {
-        await EntryRepository.updateEntryOrder(reorderedWithIndexes[i].id, i);
-      }
+      const updates = reorderedWithIndexes.map((item, index) => ({ id: item.id, newIndex: index }));
+      await EntryRepository.updateEntriesOrder(updates);
     } catch (e) {
       console.error('[JournalContext] Error al reordenar entradas:', e);
     }

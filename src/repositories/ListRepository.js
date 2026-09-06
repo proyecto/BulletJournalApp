@@ -40,6 +40,24 @@ export const insertList = async (list) => {
  * @param {number} newIndex - El nuevo índice de orden.
  * @returns {Promise<void>}
  */
+
+/**
+ * Actualiza el order_index de múltiples listas en una sola transacción.
+ * Esto evita el problema de consultas N+1 al reordenar.
+ * @param {Array<{id: string, newIndex: number}>} updates - Array de actualizaciones.
+ * @returns {Promise<void>}
+ */
+export const updateListsOrder = async (updates) => {
+  await db.withTransactionAsync(async () => {
+    for (const update of updates) {
+      await db.runAsync(
+        'UPDATE lists SET order_index = ? WHERE id = ?',
+        [update.newIndex, update.id]
+      );
+    }
+  });
+};
+
 export const updateListOrder = async (id, newIndex) => {
   await db.runAsync(
     'UPDATE lists SET order_index = ? WHERE id = ?',
