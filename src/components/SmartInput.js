@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Modal,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
@@ -118,10 +119,14 @@ export default function SmartInput({
         animationType="fade"
         onRequestClose={handleClose}
         onShow={handleModalShow}
+        statusBarTranslucent={true}
       >
         <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.modalBackdrop}>
-            <View style={styles.inputCardContainer}>
+            <KeyboardAvoidingView
+              behavior="padding"
+              style={styles.keyboardAvoidingView}
+            >
               <TouchableWithoutFeedback>
                 <View
                   style={[
@@ -185,7 +190,7 @@ export default function SmartInput({
                   </View>
                 </View>
               </TouchableWithoutFeedback>
-            </View>
+            </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -204,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
   },
-  inputCardContainer: {
+  keyboardAvoidingView: {
     width: '100%',
   },
   modalInputCard: {
