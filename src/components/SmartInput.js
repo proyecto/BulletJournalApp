@@ -1,6 +1,6 @@
 /**
  * @module SmartInput
- * @description Componente de entrada de texto estilo Bottom Sheet Modal para Android e iOS.
+ * @description Componente de entrada de texto estilo Bottom Sheet Modal diseñado exclusivamente para Android.
  * 
  * Muestra una barra visible en la parte inferior de la pantalla. Al pulsarla, abre un Modal
  * nativo con fondo atenuado y el input flotando exactamente sobre el teclado virtual.
@@ -14,8 +14,6 @@ import {
   StyleSheet,
   Modal,
   TouchableWithoutFeedback,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
@@ -53,11 +51,6 @@ export default function SmartInput({
     onSubmit();
     handleClose();
   };
-
-  const KeyboardWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
-  const keyboardWrapperProps = Platform.OS === 'ios'
-    ? { behavior: 'padding', style: styles.keyboardAvoidingView }
-    : { style: styles.keyboardAvoidingView };
 
   const defaultPlaceholder = language === 'es' ? 'Escribe aquí...' : 'Type here...';
 
@@ -128,7 +121,7 @@ export default function SmartInput({
       >
         <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.modalBackdrop}>
-            <KeyboardWrapper {...keyboardWrapperProps}>
+            <View style={styles.inputCardContainer}>
               <TouchableWithoutFeedback>
                 <View
                   style={[
@@ -192,7 +185,7 @@ export default function SmartInput({
                   </View>
                 </View>
               </TouchableWithoutFeedback>
-            </KeyboardWrapper>
+            </View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -211,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
   },
-  keyboardAvoidingView: {
+  inputCardContainer: {
     width: '100%',
   },
   modalInputCard: {

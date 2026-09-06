@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, StyleSheet, Platform } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
 
 export function AppText({ style, children, variant, ...props }) {
@@ -161,9 +161,7 @@ if (weight === '700' || weight === 'bold') finalFontFamily = 'DancingScript_700B
 
   if (finalFontFamily) {
     cleanedStyle.fontFamily = finalFontFamily;
-    if (Platform.OS === 'android') {
-       delete cleanedStyle.fontWeight;
-    }
+    delete cleanedStyle.fontWeight;
   }
 
   return (

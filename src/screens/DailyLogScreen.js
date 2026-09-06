@@ -15,7 +15,6 @@ import {
   ScrollView,
   Animated,
   PanResponder,
-  Platform,
   Alert,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';

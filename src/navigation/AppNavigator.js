@@ -1,5 +1,4 @@
 import React from 'react';
-import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,7 +55,7 @@ function BottomTabs() {
         tabBarActiveTintColor: theme.text,
         tabBarInactiveTintColor: theme.iconInactive,
         headerShown: false,
-        tabBarHideOnKeyboard: Platform.OS === 'android', // Ocultar pestañas al escribir en Android
+        tabBarHideOnKeyboard: true, // Ocultar pestañas al escribir
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: theme.border,
