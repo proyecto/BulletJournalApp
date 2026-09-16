@@ -50,8 +50,7 @@ import {
   filterEntriesForLogMode,
   getEntryIcon,
   isEntryCompleted,
-  getSignifierIcon,
-  getSignifierColor,
+  getSignifierSymbol,
 } from '../services/DailyLogService';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
@@ -410,12 +409,14 @@ export default function DailyLogScreen({ navigation }) {
                         disabled={draggingIndex !== null}
                       >
                         {item.signifier ? (
-                          <Ionicons
-                            name={getSignifierIcon(item.signifier)}
-                            size={14}
-                            color={getSignifierColor(item.signifier, theme)}
-                            style={{ marginRight: 4 }}
-                          />
+                          <Text
+                            style={[
+                              styles.signifierText,
+                              { color: isCompleted ? theme.textCompleted : theme.text },
+                            ]}
+                          >
+                            {getSignifierSymbol(item.signifier)}
+                          </Text>
                         ) : null}
                         <Ionicons
                           name={iconName}
@@ -517,32 +518,40 @@ export default function DailyLogScreen({ navigation }) {
             <TouchableOpacity
               style={[
                 styles.typeButton,
-                { backgroundColor: selectedSignifier === 'priority' ? '#FFB300' : theme.inputBackground },
+                { backgroundColor: selectedSignifier === 'priority' ? theme.text : theme.inputBackground },
               ]}
               onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
               accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
             >
-              <Ionicons
-                name="star"
-                size={12}
-                color={selectedSignifier === 'priority' ? '#FFFFFF' : theme.iconInactive}
-              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  color: selectedSignifier === 'priority' ? theme.cardBackground : theme.iconInactive,
+                }}
+              >
+                *
+              </Text>
             </TouchableOpacity>
 
             {/* Significador purista: Inspiración (!) */}
             <TouchableOpacity
               style={[
                 styles.typeButton,
-                { backgroundColor: selectedSignifier === 'inspiration' ? '#007AFF' : theme.inputBackground },
+                { backgroundColor: selectedSignifier === 'inspiration' ? theme.text : theme.inputBackground },
               ]}
               onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
               accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Inspiration (!)'}
             >
-              <Ionicons
-                name="sparkles"
-                size={12}
-                color={selectedSignifier === 'inspiration' ? '#FFFFFF' : theme.iconInactive}
-              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.iconInactive,
+                }}
+              >
+                !
+              </Text>
             </TouchableOpacity>
           </>
         }
@@ -710,10 +719,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   iconContainer: {
-    width:          24,
+    flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'center',
     marginRight:    12,
+  },
+  signifierText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 3,
   },
   taskIcon: { transform: [{ scale: 0.8 }] },
   cardContent: {

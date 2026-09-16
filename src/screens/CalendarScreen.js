@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import CustomDatePickerModal from '../components/CustomDatePickerModal';
-import { filterEntriesForDay, getEntryIcon, isEntryCompleted, getSignifierIcon, getSignifierColor } from '../services/DailyLogService';
+import { filterEntriesForDay, getEntryIcon, isEntryCompleted, getSignifierSymbol } from '../services/DailyLogService';
 import SearchModal from '../components/SearchModal';
 
 // Configurar el idioma del calendario
@@ -154,12 +154,14 @@ export default function CalendarScreen({ navigation }) {
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           {item.signifier ? (
-            <Ionicons
-              name={getSignifierIcon(item.signifier)}
-              size={14}
-              color={getSignifierColor(item.signifier, theme)}
-              style={{ marginRight: 4 }}
-            />
+            <Text
+              style={[
+                styles.signifierText,
+                { color: isCompleted ? theme.textCompleted : theme.text },
+              ]}
+            >
+              {getSignifierSymbol(item.signifier)}
+            </Text>
           ) : null}
           <Ionicons 
             name={iconName} 
@@ -303,10 +305,15 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   iconContainer: {
-    width: 24,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  signifierText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 3,
   },
   itemText: {
     flex: 1,

@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useJournal } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import { searchEntries } from '../services/SearchService';
-import { getEntryIcon, isEntryCompleted, getSignifierIcon, getSignifierColor } from '../services/DailyLogService';
+import { getEntryIcon, isEntryCompleted, getSignifierSymbol } from '../services/DailyLogService';
 
 /**
  * Modal de búsqueda global minimalista.
@@ -59,12 +59,14 @@ export default function SearchModal({ visible, onClose, onSelectResult }) {
       >
         <View style={styles.iconContainer}>
           {item.signifier ? (
-            <Ionicons
-              name={getSignifierIcon(item.signifier)}
-              size={14}
-              color={getSignifierColor(item.signifier, theme)}
-              style={{ marginRight: 4 }}
-            />
+            <Text
+              style={[
+                styles.signifierText,
+                { color: isCompleted ? theme.textCompleted : theme.text },
+              ]}
+            >
+              {getSignifierSymbol(item.signifier)}
+            </Text>
           ) : null}
           <Ionicons
             name={iconName}
@@ -202,10 +204,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   iconContainer: {
-    width: 24,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  signifierText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginRight: 3,
   },
   textContent: { flex: 1, marginRight: 8 },
   itemText: { fontSize: 15, marginBottom: 2 },
