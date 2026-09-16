@@ -43,8 +43,21 @@ describe('EntryFactory', () => {
         completedAt: null,
         listId: null,
         order_index: 0, // default
+        signifier: null,
       });
       expect(dateUtils.getFormattedDate).toHaveBeenCalledWith(date, timezone);
+    });
+
+    it('auto-detects priority (*) and inspiration (!) signifiers from text', () => {
+      dateUtils.getFormattedDate.mockReturnValue('2021-07-01');
+
+      const priorityEntry = createDailyEntry('* Urgent Task', 'task', new Date(), 'UTC');
+      expect(priorityEntry.signifier).toBe('priority');
+      expect(priorityEntry.text).toBe('Urgent Task');
+
+      const inspirationEntry = createDailyEntry('! Great Idea', 'note', new Date(), 'UTC');
+      expect(inspirationEntry.signifier).toBe('inspiration');
+      expect(inspirationEntry.text).toBe('Great Idea');
     });
 
     it('uses a new Date if no date is provided and handles custom orderIndex', () => {
@@ -84,6 +97,7 @@ describe('EntryFactory', () => {
         completedAt: null,
         listId: 'list-123',
         order_index: 0, // default
+        signifier: null,
       });
 
       expect(dateUtils.getFormattedDate).toHaveBeenCalledTimes(1);

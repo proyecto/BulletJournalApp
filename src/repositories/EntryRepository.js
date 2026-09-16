@@ -36,11 +36,12 @@ export const getAllEntries = async () => {
  * @param {string|null} entry.completedAt - Fecha de completado o null.
  * @param {string|null} entry.listId - ID de la lista padre o null.
  * @param {number} [entry.order_index] - Posición en el orden de entradas.
+ * @param {string|null} [entry.signifier] - Significador purista ('priority' | 'inspiration' | null).
  * @returns {Promise<void>}
  */
 export const insertEntry = async (entry) => {
   await db.runAsync(
-    'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index, signifier) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       entry.id,
       entry.text,
@@ -50,7 +51,21 @@ export const insertEntry = async (entry) => {
       entry.completedAt ?? null,
       entry.listId ?? null,
       entry.order_index ?? 0,
+      entry.signifier ?? null,
     ]
+  );
+};
+
+/**
+ * Actualiza el significador purista (* prioridad / ! inspiración) de una entrada.
+ * @param {string} id - ID de la entrada a actualizar.
+ * @param {string|null} newSignifier - El nuevo significador ('priority' | 'inspiration' | null).
+ * @returns {Promise<void>}
+ */
+export const updateEntrySignifier = async (id, newSignifier) => {
+  await db.runAsync(
+    'UPDATE entries SET signifier = ? WHERE id = ?',
+    [newSignifier ?? null, id]
   );
 };
 

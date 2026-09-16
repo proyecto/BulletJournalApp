@@ -206,6 +206,44 @@ export const getEntryIcon = (entry, todayStr) => {
 };
 
 /**
+ * Retorna el nombre del icono Ionicons asociado a un significador purista.
+ * - 'priority': '*' (Estrella / Prioridad Urgente)
+ * - 'inspiration': '!' (Sparkles / Exclamación / Inspiración)
+ * - null: null
+ *
+ * @param {string|null} signifier - 'priority' | 'inspiration' | null
+ * @returns {string|null}
+ */
+export const getSignifierIcon = (signifier) => {
+  if (signifier === 'priority') return 'star';
+  if (signifier === 'inspiration') return 'sparkles';
+  return null;
+};
+
+/**
+ * Retorna el símbolo textual purista ('*' o '!') del significador.
+ * @param {string|null} signifier
+ * @returns {string}
+ */
+export const getSignifierSymbol = (signifier) => {
+  if (signifier === 'priority') return '*';
+  if (signifier === 'inspiration') return '!';
+  return '';
+};
+
+/**
+ * Retorna el color distintivo para el significador.
+ * @param {string|null} signifier
+ * @param {Object} [theme]
+ * @returns {string}
+ */
+export const getSignifierColor = (signifier, theme) => {
+  if (signifier === 'priority') return '#FFB300'; // Amber/Gold para prioridad (*)
+  if (signifier === 'inspiration') return '#007AFF'; // Cyan/Azul vibrante para inspiración (!)
+  return theme?.textSecondary || '#8E8E93';
+};
+
+/**
  * Función auxiliar mantenida por compatibilidad hacia atrás.
  * @returns {boolean} Siempre false en el nuevo modelo sin badges temporales.
  */

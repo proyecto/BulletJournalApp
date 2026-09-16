@@ -35,6 +35,7 @@ import {
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSignifierIcon, getSignifierColor } from '../services/DailyLogService';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
@@ -72,7 +73,7 @@ export default function ListDetailScreen({ route, navigation }) {
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
 
   const { theme, language, timezone } = useSettings();
-  const { entries, toggleStatus, addEntry, deleteEntry, reorderEntries } = useJournal();
+  const { entries, toggleStatus, toggleSignifier, addEntry, deleteEntry, reorderEntries } = useJournal();
   const insets = useSafeAreaInsets();
 
   // ── Estado local ──────────────────────────────────────────────────────────────
@@ -166,10 +167,12 @@ export default function ListDetailScreen({ route, navigation }) {
       inputText,
       list.id,
       timezone,
-      orderedItems.length  // order_index = al final de la lista actual
+      orderedItems.length,  // order_index = al final de la lista actual
+      selectedSignifier
     );
     addEntry(newEntry);
     setInputText('');
+    setSelectedSignifier(null);
   };
 
   /**
@@ -283,13 +286,25 @@ export default function ListDetailScreen({ route, navigation }) {
                       activeOpacity={0.7}
                       disabled={draggingIndex !== null}
                     >
-                      {/*
-                        Bullet visual: círculo hueco (open) o con X (completed).
-                        Diferencia visual característica del Bullet Journal original.
-                      */}
-                      <View style={[styles.bullet, { borderColor: theme.text }]}>
-                        {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
-                      </View>
+                      {/* Bullet visual + significador purista (* / !) */}
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
+                        onPress={() => toggleSignifier(item.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        disabled={draggingIndex !== null}
+                      >
+                        {item.signifier ? (
+                          <Ionicons
+                            name={getSignifierIcon(item.signifier)}
+                            size={14}
+                            color={getSignifierColor(item.signifier, theme)}
+                            style={{ marginRight: 4 }}
+                          />
+                        ) : null}
+                        <View style={[styles.bullet, { borderColor: theme.text, marginRight: 0 }]}>
+                          {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
+                        </View>
+                      </TouchableOpacity>
 
                       {/* Texto del elemento con tachado si está completado */}
                       <Text
@@ -350,6 +365,41 @@ export default function ListDetailScreen({ route, navigation }) {
         onChangeText={setInputText}
         onSubmit={handleAddItem}
         placeholder={language === 'es' ? 'Añadir elemento...' : 'Add item...'}
+        topContent={
+          <>
+            {/* Significador purista: Prioridad (*) */}
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                { backgroundColor: selectedSignifier === 'priority' ? '#FFB300' : theme.inputBackground },
+              ]}
+              onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
+              accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
+            >
+              <Ionicons
+                name="star"
+                size={12}
+                color={selectedSignifier === 'priority' ? '#FFFFFF' : theme.iconInactive}
+              />
+            </TouchableOpacity>
+
+            {/* Significador purista: Inspiración (!) */}
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                { backgroundColor: selectedSignifier === 'inspiration' ? '#007AFF' : theme.inputBackground },
+              ]}
+              onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
+              accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Inspiration (!)'}
+            >
+              <Ionicons
+                name="sparkles"
+                size={12}
+                color={selectedSignifier === 'inspiration' ? '#FFFFFF' : theme.iconInactive}
+              />
+            </TouchableOpacity>
+          </>
+        }
       />
     </View>
   );
@@ -426,6 +476,13 @@ const styles = StyleSheet.create({
     marginLeft:     4,
     marginRight:    -4,
     alignItems:     'center',
+    justifyContent: 'center',
+  },
+  typeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignItems: 'center',
     justifyContent: 'center',
   },
 

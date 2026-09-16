@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useJournal } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import { searchEntries } from '../services/SearchService';
-import { getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import { getEntryIcon, isEntryCompleted, getSignifierIcon, getSignifierColor } from '../services/DailyLogService';
 
 /**
  * Modal de búsqueda global minimalista.
@@ -28,10 +28,12 @@ export default function SearchModal({ visible, onClose, onSelectResult }) {
   const { entries, lists } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
+
   const [query, setQuery] = useState('');
 
-  const todayStr = new Date().toISOString().substring(0, 10);
-  const results = searchEntries(entries, lists, query);
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const results = searchEntries(entries, lists, query, language);
 
   const handleClose = () => {
     setQuery('');
@@ -56,6 +58,14 @@ export default function SearchModal({ visible, onClose, onSelectResult }) {
         activeOpacity={0.7}
       >
         <View style={styles.iconContainer}>
+          {item.signifier ? (
+            <Ionicons
+              name={getSignifierIcon(item.signifier)}
+              size={14}
+              color={getSignifierColor(item.signifier, theme)}
+              style={{ marginRight: 4 }}
+            />
+          ) : null}
           <Ionicons
             name={iconName}
             size={item.type === 'note' ? 20 : 14}

@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import CustomDatePickerModal from '../components/CustomDatePickerModal';
-import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import { filterEntriesForDay, getEntryIcon, isEntryCompleted, getSignifierIcon, getSignifierColor } from '../services/DailyLogService';
 import SearchModal from '../components/SearchModal';
 
 // Configurar el idioma del calendario
@@ -27,7 +27,7 @@ LocaleConfig.locales['en'] = {
 };
 
 export default function CalendarScreen({ navigation }) {
-  const { entries, toggleStatus, updateEntryDate } = useJournal();
+  const { entries, toggleStatus, toggleSignifier, updateEntryDate } = useJournal();
   const { theme, language, timezone, isDark } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
@@ -148,13 +148,25 @@ export default function CalendarScreen({ navigation }) {
         delayLongPress={350}
         activeOpacity={0.7}
       >
-        <View style={styles.iconContainer}>
+        <TouchableOpacity
+          style={styles.iconContainer}
+          onPress={() => toggleSignifier(item.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          {item.signifier ? (
+            <Ionicons
+              name={getSignifierIcon(item.signifier)}
+              size={14}
+              color={getSignifierColor(item.signifier, theme)}
+              style={{ marginRight: 4 }}
+            />
+          ) : null}
           <Ionicons 
             name={iconName} 
             size={item.type === 'note' ? 20 : 14} 
             color={isCompleted ? theme.textCompleted : theme.text} 
           />
-        </View>
+        </TouchableOpacity>
         <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
           {item.text}
         </Text>

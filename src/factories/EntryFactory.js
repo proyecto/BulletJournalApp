@@ -31,6 +31,33 @@ import { getFormattedDate } from '../utils/dateUtils';
 const generateId = () => Date.now().toString();
 
 /**
+ * Extrae automáticamente un significador purista (* o !) al inicio del texto si existe.
+ * Ejemplos:
+ *   "* Comprar leche" -> { signifier: 'priority', text: 'Comprar leche' }
+ *   "! Idea de app"   -> { signifier: 'inspiration', text: 'Idea de app' }
+ *
+ * @param {string} rawText - Texto escrito por el usuario.
+ * @returns {{ signifier: string|null, text: string }} Texto limpio y significador detectado.
+ */
+export const parseSignifierFromText = (rawText) => {
+  if (!rawText) return { signifier: null, text: '' };
+  const trimmed = rawText.trim();
+  if (trimmed.startsWith('* ') || (trimmed.startsWith('*') && trimmed.length > 1 && trimmed[1] !== '*')) {
+    const textWithoutStar = trimmed.substring(1).trim();
+    if (textWithoutStar.length > 0) {
+      return { signifier: 'priority', text: textWithoutStar };
+    }
+  }
+  if (trimmed.startsWith('! ') || (trimmed.startsWith('!') && trimmed.length > 1 && trimmed[1] !== '!')) {
+    const textWithoutExclamation = trimmed.substring(1).trim();
+    if (textWithoutExclamation.length > 0) {
+      return { signifier: 'inspiration', text: textWithoutExclamation };
+    }
+  }
+  return { signifier: null, text: trimmed };
+};
+
+/**
  * Crea un objeto entrada válido para el Daily Log.
  * Garantiza que todos los campos obligatorios (`date`, `status`, `type`) están presentes.
  *
@@ -38,18 +65,32 @@ const generateId = () => Date.now().toString();
  * @param {string} type - El tipo de entrada: 'task' | 'event' | 'note'.
  * @param {Date} date - El objeto Date para cuando la entrada está programada.
  * @param {string} timezone - El timezone del usuario (de SettingsContext).
+ * @param {number} [orderIndex=0] - Índice de ordenamiento.
+ * @param {string|null} [signifier=null] - Significador purista ('priority' | 'inspiration' | null).
  * @returns {Object} Un objeto entry listo para ser persistido por EntryRepository.
  */
-export const createDailyEntry = (text, type, date, timezone, orderIndex = 0) => ({
-  id: generateId(),
-  text: text.trim(),
-  type,
-  status: 'open',
-  date: getFormattedDate(date || new Date(), timezone),
-  completedAt: null,
-  listId: null, // Las entradas del Daily Log no pertenecen a ninguna lista
-  order_index: orderIndex,
-});
+export const createDailyEntry = (text, type, date, timezone, orderIndex = 0, signifier = null) => {
+  let finalSignifier = signifier;
+  let finalText = text || '';
+
+  if (!finalSignifier && typeof text === 'string') {
+    const parsed = parseSignifierFromText(text);
+    finalSignifier = parsed.signifier;
+    finalText = parsed.text;
+  }
+
+  return {
+    id: generateId(),
+    text: finalText.trim(),
+    type,
+    status: 'open',
+    date: getFormattedDate(date || new Date(), timezone),
+    completedAt: null,
+    listId: null, // Las entradas del Daily Log no pertenecen a ninguna lista
+    order_index: orderIndex,
+    signifier: finalSignifier || null,
+  };
+};
 
 /**
  * Crea un objeto entrada válido para una Lista personalizada.
@@ -59,18 +100,31 @@ export const createDailyEntry = (text, type, date, timezone, orderIndex = 0) => 
  * @param {string} listId - El ID de la lista a la que pertenece este elemento.
  * @param {string} timezone - El timezone del usuario (de SettingsContext).
  * @param {number} [orderIndex=0] - La posición en el orden de la lista.
+ * @param {string|null} [signifier=null] - Significador purista ('priority' | 'inspiration' | null).
  * @returns {Object} Un objeto entry listo para ser persistido por EntryRepository.
  */
-export const createListEntry = (text, listId, timezone, orderIndex = 0) => ({
-  id: generateId(),
-  text: text.trim(),
-  type: 'task',   // Los elementos de lista son siempre tareas
-  status: 'open',
-  date: getFormattedDate(new Date(), timezone), // Fecha de creación = hoy
-  completedAt: null,
-  listId,          // Asociación con la lista padre
-  order_index: orderIndex,
-});
+export const createListEntry = (text, listId, timezone, orderIndex = 0, signifier = null) => {
+  let finalSignifier = signifier;
+  let finalText = text || '';
+
+  if (!finalSignifier && typeof text === 'string') {
+    const parsed = parseSignifierFromText(text);
+    finalSignifier = parsed.signifier;
+    finalText = parsed.text;
+  }
+
+  return {
+    id: generateId(),
+    text: finalText.trim(),
+    type: 'task',   // Los elementos de lista son siempre tareas
+    status: 'open',
+    date: getFormattedDate(new Date(), timezone), // Fecha de creación = hoy
+    completedAt: null,
+    listId,          // Asociación con la lista padre
+    order_index: orderIndex,
+    signifier: finalSignifier || null,
+  };
+};
 
 /**
  * Crea un objeto lista válido.

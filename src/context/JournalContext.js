@@ -236,6 +236,49 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Alterna el significador purista de una entrada en orden: null -> 'priority' (*) -> 'inspiration' (!) -> null.
+   * @param {string} id - ID de la entrada a modificar.
+   */
+  const toggleSignifier = async (id) => {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+
+    let nextSignifier = null;
+    if (!entry.signifier) {
+      nextSignifier = 'priority';
+    } else if (entry.signifier === 'priority') {
+      nextSignifier = 'inspiration';
+    } else {
+      nextSignifier = null;
+    }
+
+    try {
+      await EntryRepository.updateEntrySignifier(id, nextSignifier);
+      setEntries(prev =>
+        prev.map(e => e.id === id ? { ...e, signifier: nextSignifier } : e)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al cambiar significador:', e);
+    }
+  };
+
+  /**
+   * Establece directamente un significador para una entrada.
+   * @param {string} id - ID de la entrada.
+   * @param {string|null} signifier - 'priority' | 'inspiration' | null.
+   */
+  const setSignifier = async (id, signifier) => {
+    try {
+      await EntryRepository.updateEntrySignifier(id, signifier);
+      setEntries(prev =>
+        prev.map(e => e.id === id ? { ...e, signifier } : e)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al establecer significador:', e);
+    }
+  };
+
   const resetJournal = () => {
     setEntries([]);
     setLists([]);
@@ -250,6 +293,8 @@ export const JournalProvider = ({ children }) => {
       entries,
       addEntry,
       toggleStatus,
+      toggleSignifier, // Exponemos el cambio cíclico de significadores (* / !)
+      setSignifier,    // Exponemos el asignador directo de significadores
       deleteEntry, // Exponemos el método a las pantallas
       updateEntryDate, // Exponemos el método de migración
       reorderEntries, // Exponemos la reordenación de entradas

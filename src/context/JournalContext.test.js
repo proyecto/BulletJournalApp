@@ -110,22 +110,36 @@ describe('JournalContext', () => {
     expect(result.current.entries[0].completedAt).toBeNull();
   });
 
-  it('does not toggle status for notes', async () => {
+  it('toggles signifier in order: null -> priority -> inspiration -> null', async () => {
     const wrapper = ({ children }) => <JournalProvider>{children}</JournalProvider>;
     const { result } = await renderHook(() => useJournal(), { wrapper });
 
     await waitFor(() => expect(result.current).toBeTruthy());
 
-    const note = createDailyEntry('A simple note', 'note', '2026-09-16');
+    const task = createDailyEntry('Task with signifier', 'task', '2026-09-16');
     await act(async () => {
-      await result.current.addEntry(note);
+      await result.current.addEntry(task);
     });
 
-    await act(async () => {
-      await result.current.toggleStatus(note.id, '2026-09-16');
-    });
+    expect(result.current.entries[0].signifier).toBeNull();
 
-    expect(result.current.entries[0].status).toBe('open');
+    // Toggle 1: null -> priority
+    await act(async () => {
+      await result.current.toggleSignifier(task.id);
+    });
+    expect(result.current.entries[0].signifier).toBe('priority');
+
+    // Toggle 2: priority -> inspiration
+    await act(async () => {
+      await result.current.toggleSignifier(task.id);
+    });
+    expect(result.current.entries[0].signifier).toBe('inspiration');
+
+    // Toggle 3: inspiration -> null
+    await act(async () => {
+      await result.current.toggleSignifier(task.id);
+    });
+    expect(result.current.entries[0].signifier).toBeNull();
   });
 
   it('deletes an entry from state and database', async () => {

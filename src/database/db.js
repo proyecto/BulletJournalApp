@@ -53,6 +53,7 @@ export const initDB = () => {
     -- 'date': Fecha en formato YYYY-MM-DD (requerida, NOT NULL)
     -- 'completedAt': Fecha en que se completó la tarea (NULL si no está completada)
     -- 'listId': Clave foránea a 'lists'. NULL si es una entrada del Daily Log.
+    -- 'signifier': Significador purista BuJo ('priority' [*] | 'inspiration' [!] | NULL)
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
       text TEXT NOT NULL,
@@ -61,7 +62,8 @@ export const initDB = () => {
       date TEXT NOT NULL,
       completedAt TEXT,
       listId TEXT,
-      order_index INTEGER DEFAULT 0
+      order_index INTEGER DEFAULT 0,
+      signifier TEXT
     );
 
     -- Tabla de configuración clave-valor para persistir las preferencias del usuario
@@ -74,6 +76,13 @@ export const initDB = () => {
   // Migración segura para bases de datos existentes que no tenían la columna order_index en entries
   try {
     db.execSync('ALTER TABLE entries ADD COLUMN order_index INTEGER DEFAULT 0;');
+  } catch (e) {
+    // La columna ya existe, se ignora de forma segura
+  }
+
+  // Migración segura para bases de datos existentes que no tenían la columna signifier en entries
+  try {
+    db.execSync('ALTER TABLE entries ADD COLUMN signifier TEXT DEFAULT NULL;');
   } catch (e) {
     // La columna ya existe, se ignora de forma segura
   }

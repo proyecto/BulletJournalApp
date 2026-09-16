@@ -46,7 +46,13 @@ import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import SmartInput from '../components/SmartInput';
 import { createDailyEntry } from '../factories/EntryFactory';
-import { filterEntriesForLogMode, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import {
+  filterEntriesForLogMode,
+  getEntryIcon,
+  isEntryCompleted,
+  getSignifierIcon,
+  getSignifierColor,
+} from '../services/DailyLogService';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
 import SearchModal from '../components/SearchModal';
@@ -74,7 +80,7 @@ export default function DailyLogScreen({ navigation }) {
 
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
 
-  const { entries, addEntry, toggleStatus, deleteEntry, updateEntryDate, reorderEntries } = useJournal();
+  const { entries, addEntry, toggleStatus, toggleSignifier, deleteEntry, updateEntryDate, reorderEntries } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
 
@@ -94,6 +100,9 @@ export default function DailyLogScreen({ navigation }) {
 
   /** Tipo de entrada seleccionado en el selector del SmartInput */
   const [selectedType, setSelectedType] = useState('task');
+
+  /** Significador purista seleccionado para la nueva entrada ('priority' | 'inspiration' | null) */
+  const [selectedSignifier, setSelectedSignifier] = useState(null);
 
   /** Fecha seleccionada para la nueva entrada (puede diferir del día visualizado) */
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -221,11 +230,13 @@ export default function DailyLogScreen({ navigation }) {
       selectedType,
       selectedDate,
       timezone,
-      orderedEntries.length
+      orderedEntries.length,
+      selectedSignifier
     );
     addEntry(newEntry);
 
     setInputText('');
+    setSelectedSignifier(null);
     setSelectedDate(currentLogDate);
   };
 
@@ -391,15 +402,28 @@ export default function DailyLogScreen({ navigation }) {
                       activeOpacity={0.7}
                       disabled={draggingIndex !== null}
                     >
-                      {/* Ícono del tipo/estado de la entrada */}
-                      <View style={styles.iconContainer}>
+                      {/* Ícono del tipo/estado de la entrada + Significador purista (* / !) */}
+                      <TouchableOpacity
+                        style={styles.iconContainer}
+                        onPress={() => toggleSignifier(item.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        disabled={draggingIndex !== null}
+                      >
+                        {item.signifier ? (
+                          <Ionicons
+                            name={getSignifierIcon(item.signifier)}
+                            size={14}
+                            color={getSignifierColor(item.signifier, theme)}
+                            style={{ marginRight: 4 }}
+                          />
+                        ) : null}
                         <Ionicons
                           name={iconName}
                           size={item.type === 'note' ? 24 : 16}
                           color={iconColor}
                           style={item.type === 'task' && !isCompleted ? styles.taskIcon : null}
                         />
-                      </View>
+                      </TouchableOpacity>
 
                       {/* Texto de la entrada */}
                       <View style={styles.cardContent}>
@@ -484,6 +508,41 @@ export default function DailyLogScreen({ navigation }) {
               accessibilityLabel={language === 'es' ? 'Nota' : 'Note'}
             >
               <Ionicons name="remove" size={16} color={selectedType === 'note' ? theme.cardBackground : theme.iconInactive} />
+            </TouchableOpacity>
+
+            {/* Divisor suave */}
+            <View style={{ width: 1, height: 18, backgroundColor: theme.border, marginHorizontal: 4 }} />
+
+            {/* Significador purista: Prioridad (*) */}
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                { backgroundColor: selectedSignifier === 'priority' ? '#FFB300' : theme.inputBackground },
+              ]}
+              onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
+              accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
+            >
+              <Ionicons
+                name="star"
+                size={12}
+                color={selectedSignifier === 'priority' ? '#FFFFFF' : theme.iconInactive}
+              />
+            </TouchableOpacity>
+
+            {/* Significador purista: Inspiración (!) */}
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                { backgroundColor: selectedSignifier === 'inspiration' ? '#007AFF' : theme.inputBackground },
+              ]}
+              onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
+              accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Inspiration (!)'}
+            >
+              <Ionicons
+                name="sparkles"
+                size={12}
+                color={selectedSignifier === 'inspiration' ? '#FFFFFF' : theme.iconInactive}
+              />
             </TouchableOpacity>
           </>
         }
