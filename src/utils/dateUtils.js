@@ -44,3 +44,71 @@ export const getFormattedDate = (date, timezone = 'system') => {
     return `${year}-${month}-${day}`;
   }
 };
+
+/**
+ * Devuelve el rango de fechas (lunes a domingo) para la fecha dada.
+ *
+ * @param {Date|string} dateInput - Fecha base.
+ * @param {string} [timezone='system'] - Timezone IANA.
+ * @returns {{ startStr: string, endStr: string, startDate: Date, endDate: Date }}
+ */
+export const getWeekRange = (dateInput, timezone = 'system') => {
+  const d = new Date(dateInput);
+  const day = d.getDay();
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return {
+    startStr: getFormattedDate(monday, timezone),
+    endStr: getFormattedDate(sunday, timezone),
+    startDate: monday,
+    endDate: sunday,
+  };
+};
+
+/**
+ * Devuelve la cadena formateada del subtítulo para la vista Semanal.
+ *
+ * @param {Date} date - Fecha base.
+ * @param {string} [language='es'] - 'es' | 'en'
+ * @returns {string} Ej: "14 sep - 20 sep 2026" / "Sep 14 - Sep 20, 2026"
+ */
+export const getFormattedWeekSubtitle = (date, language = 'es') => {
+  const { startDate, endDate } = getWeekRange(date);
+  const locale = language === 'es' ? 'es-ES' : 'en-US';
+  
+  const startDay = startDate.getDate();
+  const startMonth = startDate.toLocaleDateString(locale, { month: 'short' });
+  const endDay = endDate.getDate();
+  const endMonth = endDate.toLocaleDateString(locale, { month: 'short' });
+  const year = endDate.getFullYear();
+
+  if (language === 'es') {
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${year}`;
+  } else {
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
+  }
+};
+
+/**
+ * Devuelve la cadena formateada del subtítulo para la vista Mensual.
+ *
+ * @param {Date} date - Fecha base.
+ * @param {string} [language='es'] - 'es' | 'en'
+ * @returns {string} Ej: "septiembre 2026" / "September 2026"
+ */
+export const getFormattedMonthSubtitle = (date, language = 'es') => {
+  const locale = language === 'es' ? 'es-ES' : 'en-US';
+  const monthName = date.toLocaleDateString(locale, { month: 'long' });
+  const year = date.getFullYear();
+  
+  const capitalizedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  return `${capitalizedMonth} ${year}`;
+};

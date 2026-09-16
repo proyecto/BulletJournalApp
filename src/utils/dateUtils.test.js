@@ -1,4 +1,9 @@
-import { getFormattedDate } from './dateUtils';
+import {
+  getFormattedDate,
+  getWeekRange,
+  getFormattedWeekSubtitle,
+  getFormattedMonthSubtitle,
+} from './dateUtils';
 
 describe('dateUtils', () => {
   describe('getFormattedDate', () => {
@@ -30,6 +35,52 @@ describe('dateUtils', () => {
       const date = new Date(2026, 8, 15);
       const result = getFormattedDate(date, 'Invalid/Timezone_Name');
       expect(result).toBe('2026-09-15');
+    });
+  });
+
+  describe('getWeekRange', () => {
+    it('calculates correct Monday to Sunday date range for a Wednesday', () => {
+      const wednesday = new Date(2026, 8, 16); // Sep 16, 2026 (Wednesday)
+      const range = getWeekRange(wednesday, 'system');
+      expect(range.startStr).toBe('2026-09-14'); // Monday
+      expect(range.endStr).toBe('2026-09-20');   // Sunday
+    });
+
+    it('calculates correct Monday to Sunday date range when given a Sunday', () => {
+      const sunday = new Date(2026, 8, 20); // Sep 20, 2026 (Sunday)
+      const range = getWeekRange(sunday, 'system');
+      expect(range.startStr).toBe('2026-09-14');
+      expect(range.endStr).toBe('2026-09-20');
+    });
+  });
+
+  describe('getFormattedWeekSubtitle', () => {
+    it('formats week range subtitle in Spanish', () => {
+      const date = new Date(2026, 8, 16);
+      const subtitle = getFormattedWeekSubtitle(date, 'es');
+      expect(subtitle).toContain('14');
+      expect(subtitle).toContain('20');
+      expect(subtitle).toContain('2026');
+    });
+
+    it('formats week range subtitle in English', () => {
+      const date = new Date(2026, 8, 16);
+      const subtitle = getFormattedWeekSubtitle(date, 'en');
+      expect(subtitle).toContain('14');
+      expect(subtitle).toContain('20');
+      expect(subtitle).toContain('2026');
+    });
+  });
+
+  describe('getFormattedMonthSubtitle', () => {
+    it('formats month subtitle in Spanish', () => {
+      const date = new Date(2026, 8, 16);
+      expect(getFormattedMonthSubtitle(date, 'es')).toContain('Septiembre 2026');
+    });
+
+    it('formats month subtitle in English', () => {
+      const date = new Date(2026, 8, 16);
+      expect(getFormattedMonthSubtitle(date, 'en')).toContain('September 2026');
     });
   });
 });

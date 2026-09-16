@@ -1,4 +1,12 @@
-import { isEntryCompleted, filterEntriesForDay, getEntryIcon, isEntryTemporallyDisplaced } from './DailyLogService';
+import {
+  isEntryCompleted,
+  filterEntriesForDay,
+  filterEntriesForWeek,
+  filterEntriesForMonth,
+  filterEntriesForLogMode,
+  getEntryIcon,
+  isEntryTemporallyDisplaced,
+} from './DailyLogService';
 
 describe('DailyLogService', () => {
   const TODAY = '2026-09-16';
@@ -113,6 +121,47 @@ describe('DailyLogService', () => {
 
       const result = filterEntriesForDay(entries, TODAY, TODAY);
       expect(result.map(e => e.id)).toEqual(['1', '2', '3']);
+    });
+  });
+
+  describe('filterEntriesForWeek', () => {
+    it('returns empty array when entries is invalid', () => {
+      expect(filterEntriesForWeek(null, TODAY, TODAY)).toEqual([]);
+    });
+
+    it('filters entries that fall in the week range of the viewing date', () => {
+      const entries = [
+        { id: 'w1', type: 'task', status: 'open', date: TODAY, order_index: 0 }, // 2026-09-16 (Wed, in week 14-20)
+        { id: 'w2', type: 'task', status: 'open', date: '2026-09-14', order_index: 1 }, // Mon
+        { id: 'w3', type: 'task', status: 'open', date: '2026-09-21', order_index: 2 }, // Next Mon (out of week)
+      ];
+      const result = filterEntriesForWeek(entries, TODAY, TODAY);
+      expect(result.map(e => e.id)).toEqual(['w2', 'w1']);
+    });
+  });
+
+  describe('filterEntriesForMonth', () => {
+    it('returns empty array when entries is invalid', () => {
+      expect(filterEntriesForMonth(null, TODAY, TODAY)).toEqual([]);
+    });
+
+    it('filters entries that fall in the month of viewing date', () => {
+      const entries = [
+        { id: 'm1', type: 'task', status: 'open', date: TODAY, order_index: 0 }, // 2026-09-16
+        { id: 'm2', type: 'event', date: '2026-09-01', order_index: 1 },
+        { id: 'm3', type: 'task', status: 'open', date: '2026-10-01', order_index: 2 }, // Next month
+      ];
+      const result = filterEntriesForMonth(entries, TODAY, TODAY);
+      expect(result.map(e => e.id)).toEqual(['m2', 'm1']);
+    });
+  });
+
+  describe('filterEntriesForLogMode', () => {
+    it('delegates to day, week or month filter depending on mode', () => {
+      const entries = [{ id: '1', type: 'task', status: 'open', date: TODAY, order_index: 0 }];
+      expect(filterEntriesForLogMode(entries, TODAY, TODAY, 'daily')).toHaveLength(1);
+      expect(filterEntriesForLogMode(entries, TODAY, TODAY, 'week')).toHaveLength(1);
+      expect(filterEntriesForLogMode(entries, TODAY, TODAY, 'month')).toHaveLength(1);
     });
   });
 

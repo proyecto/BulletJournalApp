@@ -36,6 +36,7 @@ import {
   ScrollView,
   Animated,
   Alert,
+  Modal,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,8 +46,9 @@ import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import SmartInput from '../components/SmartInput';
 import { createDailyEntry } from '../factories/EntryFactory';
-import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import { filterEntriesForLogMode, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
+import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
 
 // ─── Constantes de Layout ─────────────────────────────────────────────────────
 
@@ -61,7 +63,7 @@ const SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP;
 // ─── Pantalla Principal ───────────────────────────────────────────────────────
 
 /**
- * Pantalla "Daily Log" del Bullet Journal.
+ * Pantalla "Daily Log / Week Log / Month Log" del Bullet Journal.
  *
  * @returns {JSX.Element} La pantalla renderizada.
  */
@@ -74,6 +76,12 @@ export default function DailyLogScreen() {
   const insets = useSafeAreaInsets();
 
   // ── Estado local de la pantalla ──────────────────────────────────────────────
+
+  /** Modo de log activo ('daily' | 'week' | 'month') */
+  const [logMode, setLogMode] = useState('daily');
+
+  /** Visibilidad del desplegable para cambiar de modo de log */
+  const [showLogModeMenu, setShowLogModeMenu] = useState(false);
 
   /** Texto del campo de nueva entrada */
   const [inputText, setInputText] = useState('');
@@ -90,7 +98,7 @@ export default function DailyLogScreen() {
   /** Entrada que el usuario quiere mover a otro día (pulsación larga) */
   const [reschedulingItem, setReschedulingItem] = useState(null);
 
-  /** Fecha del día que se está visualizando actualmente */
+  /** Fecha del día/semana/mes que se está visualizando actualmente */
   const [currentLogDate, setCurrentLogDate] = useState(new Date());
 
   // ── Fechas formateadas ────────────────────────────────────────────────────────
@@ -105,21 +113,12 @@ export default function DailyLogScreen() {
 
   /**
    * Delegamos el filtrado al servicio `DailyLogService`.
-   * El servicio aplica las reglas de negocio del Bullet Journal:
-   *   - Entradas creadas para `currentLogDateStr`
-   *   - Tareas abiertas de días ANTERIORES que "migran" a HOY
-   * La pantalla no necesita conocer estas reglas internamente.
+   * El servicio aplica las reglas de negocio del Bullet Journal para Daily, Week y Month log.
    */
-  const dailyLogEntries = filterEntriesForDay(entries, currentLogDateStr, todayStr);
+  const currentLogEntries = filterEntriesForLogMode(entries, currentLogDateStr, todayStr, logMode);
 
   // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
 
-  /**
-   * Delegamos TODA la lógica de arrastre al hook especializado.
-   *
-   * Strategy: `reorderEntries` es la estrategia de persistencia intercambiable.
-   * Template Method: el hook define el algoritmo; `slotHeight` lo especializa.
-   */
   const {
     orderedItems: orderedEntries,
     setOrderedItems: setOrderedEntries,
@@ -128,40 +127,28 @@ export default function DailyLogScreen() {
     panResponders,
     isDraggingRef,
   } = useDragAndDrop({
-    items: dailyLogEntries,
+    items: currentLogEntries,
     onReorder: reorderEntries,
     slotHeight: SLOT_HEIGHT,
   });
 
   // ── Sincronización con el estado global (Observer) ───────────────────────────
 
-  /**
-   * Sincroniza la fecha del selector con el día visualizado al cambiar de día.
-   */
   useEffect(() => {
     setSelectedDate(currentLogDate);
   }, [currentLogDate]);
 
-  /**
-   * Cuando el contexto global (`entries`) cambia (nueva entrada, toggle, cambio de día),
-   * sincronizamos el estado local con la nueva fuente de verdad.
-   *
-   * GUARD: `isDraggingRef.current` evita que una actualización interrumpa un drag activo.
-   *
-   * Comparación profunda: verificamos `id`, `status`, `text` y `date` para detectar
-   * cualquier cambio relevante (no solo reordenaciones).
-   */
   useEffect(() => {
     if (isDraggingRef.current) return;
 
     const isSame =
-      orderedEntries.length === dailyLogEntries.length &&
+      orderedEntries.length === currentLogEntries.length &&
       orderedEntries.every(
         (item, idx) =>
-          item.id     === dailyLogEntries[idx]?.id     &&
-          item.status === dailyLogEntries[idx]?.status &&
-          item.text   === dailyLogEntries[idx]?.text   &&
-          item.date   === dailyLogEntries[idx]?.date
+          item.id     === currentLogEntries[idx]?.id     &&
+          item.status === currentLogEntries[idx]?.status &&
+          item.text   === currentLogEntries[idx]?.text   &&
+          item.date   === currentLogEntries[idx]?.date
       );
 
     if (!isSame) {
@@ -169,27 +156,57 @@ export default function DailyLogScreen() {
         anim.stopAnimation();
         anim.setValue(0);
       });
-      setOrderedEntries(dailyLogEntries);
+      setOrderedEntries(currentLogEntries);
     }
-  }, [entries, currentLogDateStr, todayStr]);
+  }, [entries, currentLogDateStr, todayStr, logMode]);
 
   // ── Handlers de Negocio ──────────────────────────────────────────────────────
 
   /**
-   * Navega al día anterior (-1) o siguiente (+1).
+   * Navega según el modo activo (-1 o +1 unidad: días, semanas o meses).
    * @param {-1 | 1} direction - Dirección de la navegación.
    */
-  const navigateDay = (direction) => {
+  const navigatePeriod = (direction) => {
     const newDate = new Date(currentLogDate);
-    newDate.setDate(newDate.getDate() + direction);
+    if (logMode === 'week') {
+      newDate.setDate(newDate.getDate() + direction * 7);
+    } else if (logMode === 'month') {
+      newDate.setMonth(newDate.getMonth() + direction);
+    } else {
+      newDate.setDate(newDate.getDate() + direction);
+    }
     setCurrentLogDate(newDate);
   };
 
   /**
-   * Añade una nueva entrada al día visualizado.
-   * Usa `EntryFactory.createDailyEntry` para garantizar la estructura correcta.
-   * El `order_index` se asigna al final de la lista actual.
+   * Título principal según el modo activo e idioma.
    */
+  const getLogTitle = () => {
+    if (logMode === 'week') {
+      return language === 'es' ? 'Log Semanal' : 'Week Log';
+    }
+    if (logMode === 'month') {
+      return language === 'es' ? 'Log Mensual' : 'Month Log';
+    }
+    return language === 'es' ? 'Log Diario' : 'Daily Log';
+  };
+
+  /**
+   * Subtítulo con rango de fechas o nombre de fecha.
+   */
+  const getLogSubtitle = () => {
+    if (logMode === 'week') {
+      return getFormattedWeekSubtitle(currentLogDate, language);
+    }
+    if (logMode === 'month') {
+      return getFormattedMonthSubtitle(currentLogDate, language);
+    }
+    return currentLogDate.toLocaleDateString(
+      language === 'es' ? 'es-ES' : 'en-US',
+      { weekday: 'long', month: 'long', day: 'numeric' }
+    );
+  };
+
   const handleAddEntry = () => {
     if (!inputText.trim()) return;
 
@@ -202,23 +219,14 @@ export default function DailyLogScreen() {
     );
     addEntry(newEntry);
 
-    // Resetear el input y la fecha al día visualizado
     setInputText('');
     setSelectedDate(currentLogDate);
   };
 
-  /**
-   * Abre el selector de fecha para mover una entrada existente a otro día.
-   * @param {Object} item - La entrada a reprogramar.
-   */
   const handleOpenDatePickerForItem = (item) => {
     setReschedulingItem(item);
   };
 
-  /**
-   * Confirma el movimiento de una entrada a la nueva fecha seleccionada.
-   * @param {Date} newDate - La nueva fecha destino.
-   */
   const handleMoveEntryDate = (newDate) => {
     if (!reschedulingItem) return;
     const newDateStr = getFormattedDate(newDate, timezone);
@@ -226,10 +234,6 @@ export default function DailyLogScreen() {
     setReschedulingItem(null);
   };
 
-  /**
-   * Muestra un diálogo de confirmación antes de eliminar una entrada.
-   * @param {string} id - ID de la entrada a eliminar.
-   */
   const confirmDeleteEntry = (id) => {
     Alert.alert(
       language === 'es' ? 'Eliminar registro' : 'Delete entry',
@@ -247,11 +251,6 @@ export default function DailyLogScreen() {
     );
   };
 
-  // ── Computed ──────────────────────────────────────────────────────────────────
-
-  /** Indica si el usuario está viendo el día de hoy */
-  const isViewingToday = currentLogDateStr === todayStr;
-
   // ── Renderizado ───────────────────────────────────────────────────────────────
 
   return (
@@ -264,23 +263,38 @@ export default function DailyLogScreen() {
       {/* ── Cabecera con navegación de días ──────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerNav}>
-          <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.navButton}>
+          <TouchableOpacity onPress={() => navigatePeriod(-1)} style={styles.navButton}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
 
           <View style={styles.headerTitles}>
-            <Text variant="h1" style={[styles.title, { color: theme.text }]}>
-              {isViewingToday ? 'Daily Log' : currentLogDateStr}
-            </Text>
+            <TouchableOpacity
+              style={[
+                styles.titleSelector,
+                { backgroundColor: theme.inputBackground }
+              ]}
+              onPress={() => setShowLogModeMenu(prev => !prev)}
+              activeOpacity={0.6}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+              accessibilityLabel={language === 'es' ? 'Cambiar vista de log' : 'Change log view'}
+            >
+              <Text variant="h1" style={[styles.title, { color: theme.text }]}>
+                {getLogTitle()}
+              </Text>
+              <Ionicons
+                name={showLogModeMenu ? "caret-up" : "caret-down"}
+                size={14}
+                color={theme.text}
+                style={{ marginLeft: 8 }}
+              />
+            </TouchableOpacity>
+
             <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {currentLogDate.toLocaleDateString(
-                language === 'es' ? 'es-ES' : 'en-US',
-                { weekday: 'long', month: 'long', day: 'numeric' }
-              )}
+              {getLogSubtitle()}
             </Text>
           </View>
 
-          <TouchableOpacity onPress={() => navigateDay(1)} style={styles.navButton}>
+          <TouchableOpacity onPress={() => navigatePeriod(1)} style={styles.navButton}>
             <Ionicons name="chevron-forward" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
@@ -297,7 +311,11 @@ export default function DailyLogScreen() {
             // ── Estado vacío ────────────────────────────────────────────────
             <View style={styles.emptyContainer}>
               <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
-                {language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.'}
+                {logMode === 'week'
+                  ? (language === 'es' ? 'Ningún registro en esta semana.' : 'No entries in this week.')
+                  : logMode === 'month'
+                  ? (language === 'es' ? 'Ningún registro en este mes.' : 'No entries in this month.')
+                  : (language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.')}
               </Text>
             </View>
           ) : (
@@ -477,6 +495,74 @@ export default function DailyLogScreen() {
         onSelectDate={handleMoveEntryDate}
         onClose={() => setReschedulingItem(null)}
       />
+
+      {/* ── Desplegable flotante: Selector de vista (Log Diario / Semanal / Mensual) ── */}
+      {showLogModeMenu && (
+        <View style={styles.inlineOverlayContainer} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.inlineBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowLogModeMenu(false)}
+          />
+          <View
+            style={[
+              styles.dropdownMenu,
+              {
+                backgroundColor: theme.cardBackground,
+                borderColor: theme.border,
+                shadowColor: theme.text,
+                top: Math.max(insets.top, 30) + 55,
+              },
+            ]}
+          >
+            {[
+              { id: 'daily', labelEs: 'Log Diario',  labelEn: 'Daily Log', icon: 'today-outline' },
+              { id: 'week',  labelEs: 'Log Semanal', labelEn: 'Week Log',  icon: 'calendar-outline' },
+              { id: 'month', labelEs: 'Log Mensual', labelEn: 'Month Log', icon: 'calendar-number-outline' },
+            ].map((option) => {
+              const isSelected = logMode === option.id;
+              const label = language === 'es' ? option.labelEs : option.labelEn;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.dropdownItem,
+                    isSelected && { backgroundColor: theme.primaryBackground || theme.inputBackground },
+                  ]}
+                  onPress={() => {
+                    setLogMode(option.id);
+                    setShowLogModeMenu(false);
+                  }}
+                >
+                  <Ionicons
+                    name={option.icon}
+                    size={20}
+                    color={isSelected ? theme.primary : theme.text}
+                    style={{ marginRight: 12 }}
+                  />
+                  <Text
+                    variant="body"
+                    style={[
+                      styles.dropdownItemText,
+                      { color: isSelected ? theme.primary : theme.text, fontWeight: isSelected ? '700' : '400' },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                  {isSelected && (
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color={theme.primary}
+                      style={{ marginLeft: 'auto' }}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -484,12 +570,19 @@ export default function DailyLogScreen() {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
+  safeArea: { flex: 1, position: 'relative' },
 
   /** Cabecera con navegación de días */
-  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10 },
+  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, zIndex: 10 },
   headerNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitles: { alignItems: 'center' },
+  titleSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
   navButton: { padding: 8 },
   title: { letterSpacing: -0.5 },
   subtitle: { marginTop: 4, textTransform: 'capitalize' },
@@ -563,4 +656,39 @@ const styles = StyleSheet.create({
     borderRadius:      16,
   },
   calendarButton: { padding: 4 },
+
+  inlineOverlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9998,
+    elevation: 9998,
+  },
+  inlineBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: 220,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 9999,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginHorizontal: 4,
+    marginVertical: 2,
+  },
+  dropdownItemText: {
+    fontSize: 15,
+  },
 });
