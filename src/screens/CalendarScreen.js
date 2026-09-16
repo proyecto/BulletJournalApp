@@ -141,17 +141,12 @@ export default function CalendarScreen({ navigation }) {
     const iconName = getEntryIcon(item, today);
 
     return (
-      <TouchableOpacity 
-        style={[styles.itemContainer, { backgroundColor: theme.cardBackground }]}
-        onPress={() => item.type !== 'note' && toggleStatus(item.id, selectedDate)}
-        onLongPress={() => setReschedulingItem(item)}
-        delayLongPress={350}
-        activeOpacity={0.7}
-      >
+      <View style={[styles.itemContainer, { backgroundColor: theme.cardBackground }]}>
         <TouchableOpacity
           style={styles.iconContainer}
           onPress={() => toggleSignifier(item.id)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.5}
         >
           {item.signifier ? (
             <Text
@@ -169,10 +164,19 @@ export default function CalendarScreen({ navigation }) {
             color={isCompleted ? theme.textCompleted : theme.text} 
           />
         </TouchableOpacity>
-        <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
-          {item.text}
-        </Text>
-      </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 4 }}
+          onPress={() => item.type !== 'note' && toggleStatus(item.id, selectedDate)}
+          onLongPress={() => setReschedulingItem(item)}
+          delayLongPress={350}
+          activeOpacity={0.7}
+        >
+          <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
+            {item.text}
+          </Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 

@@ -392,21 +392,15 @@ export default function DailyLogScreen({ navigation }) {
                       isCompleted && { backgroundColor: theme.cardCompleted },
                     ]}
                   >
-                    {/* ── Área principal: toggle de estado + mover fecha ──── */}
-                    <TouchableOpacity
-                      style={styles.cardMainArea}
-                      onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
-                      onLongPress={() => handleOpenDatePickerForItem(item)}
-                      delayLongPress={350}
-                      activeOpacity={0.7}
-                      disabled={draggingIndex !== null}
-                    >
+                    {/* ── Área principal: toggle de significador (* / !) + toggle de estado + mover fecha ──── */}
+                    <View style={styles.cardMainArea}>
                       {/* Ícono del tipo/estado de la entrada + Significador purista (* / !) */}
                       <TouchableOpacity
                         style={styles.iconContainer}
                         onPress={() => toggleSignifier(item.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         disabled={draggingIndex !== null}
+                        activeOpacity={0.5}
                       >
                         {item.signifier ? (
                           <Text
@@ -426,8 +420,15 @@ export default function DailyLogScreen({ navigation }) {
                         />
                       </TouchableOpacity>
 
-                      {/* Texto de la entrada */}
-                      <View style={styles.cardContent}>
+                      {/* Texto de la entrada: pulsar para tachar/completar, pulsación larga para mover fecha */}
+                      <TouchableOpacity
+                        style={styles.cardContent}
+                        onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
+                        onLongPress={() => handleOpenDatePickerForItem(item)}
+                        delayLongPress={350}
+                        activeOpacity={0.7}
+                        disabled={draggingIndex !== null}
+                      >
                         <Text
                           variant="body"
                           style={[
@@ -439,8 +440,8 @@ export default function DailyLogScreen({ navigation }) {
                         >
                           {item.text}
                         </Text>
-                      </View>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                    </View>
 
                     {/* ── Acciones: eliminar y arrastrar ──────────────────── */}
                     <View style={styles.actionButtons}>

@@ -279,19 +279,15 @@ export default function ListDetailScreen({ route, navigation }) {
                       isCompleted && { backgroundColor: theme.cardCompleted },
                     ]}
                   >
-                    {/* ── Área principal: toggle de estado completado ──── */}
-                    <TouchableOpacity
-                      style={styles.cardMainArea}
-                      onPress={() => toggleStatus(item.id, null)}
-                      activeOpacity={0.7}
-                      disabled={draggingIndex !== null}
-                    >
+                    {/* ── Área principal: toggle de significador (* / !) + toggle de estado completado ──── */}
+                    <View style={styles.cardMainArea}>
                       {/* Bullet visual + significador purista (* / !) */}
                       <TouchableOpacity
-                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
+                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, paddingVertical: 4 }}
                         onPress={() => toggleSignifier(item.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                         disabled={draggingIndex !== null}
+                        activeOpacity={0.5}
                       >
                         {item.signifier ? (
                           <Text
@@ -309,18 +305,25 @@ export default function ListDetailScreen({ route, navigation }) {
                       </TouchableOpacity>
 
                       {/* Texto del elemento con tachado si está completado */}
-                      <Text
-                        variant="body"
-                        style={[
-                          styles.cardText,
-                          { color: isCompleted ? theme.textCompleted : theme.text },
-                          isCompleted && styles.itemTextCompleted,
-                        ]}
-                        numberOfLines={1}
+                      <TouchableOpacity
+                        style={{ flex: 1, paddingVertical: 4 }}
+                        onPress={() => toggleStatus(item.id, null)}
+                        activeOpacity={0.7}
+                        disabled={draggingIndex !== null}
                       >
-                        {item.text}
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          variant="body"
+                          style={[
+                            styles.cardText,
+                            { color: isCompleted ? theme.textCompleted : theme.text },
+                            isCompleted && styles.itemTextCompleted,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.text}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
 
                     {/* ── Acciones: eliminar y arrastrar ──────────────────── */}
                     <View style={styles.actionButtons}>
