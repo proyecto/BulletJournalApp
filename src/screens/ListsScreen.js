@@ -46,6 +46,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
 import SmartInput from '../components/SmartInput';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
+import SearchModal from '../components/SearchModal';
 
 // ─── Constantes de Layout ─────────────────────────────────────────────────────
 
@@ -92,6 +93,17 @@ export default function ListsScreen({ navigation }) {
 
   /** Texto en curso del campo de nueva lista */
   const [inputText, setInputText] = useState('');
+
+  /** Visibilidad del buscador global */
+  const [showSearchModal, setShowSearchModal] = useState(false);
+
+  const handleSelectSearchResult = (item) => {
+    if (item.listId && navigation) {
+      navigation.navigate('ListDetail', { list: { id: item.listId, title: item.listName || '' } });
+    } else if ((item.date || item.completedAt) && navigation) {
+      navigation.navigate('Hoy');
+    }
+  };
 
   // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
 
@@ -203,12 +215,20 @@ export default function ListsScreen({ navigation }) {
     >
       {/* ── Cabecera ─────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <Text variant="h1" style={[styles.title, { color: theme.text }]}>
-          {language === 'es' ? 'Listas' : 'Lists'}
-        </Text>
-        <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {language === 'es' ? 'Tus colecciones' : 'Your collections'}
-        </Text>
+        <View style={styles.headerNav}>
+          <View style={{ width: 28 }} />
+          <View style={styles.headerTitles}>
+            <Text variant="h1" style={[styles.title, { color: theme.text }]}>
+              {language === 'es' ? 'Listas' : 'Lists'}
+            </Text>
+            <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+              {language === 'es' ? 'Tus colecciones' : 'Your collections'}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.searchIconButton}>
+            <Ionicons name="search" size={22} color={theme.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Lista de elementos ───────────────────────────────────────────── */}
@@ -351,15 +371,18 @@ export default function ListsScreen({ navigation }) {
       </View>
 
       {/* ── Input de nueva lista ─────────────────────────────────────────── */}
-      {/*
-        SmartInput gestiona la visibilidad del teclado y el posicionamiento
-        del input sobre el teclado nativo (KeyboardAvoidingView interno).
-      */}
       <SmartInput
         value={inputText}
         onChangeText={setInputText}
         onSubmit={handleAddList}
         placeholder={language === 'es' ? 'Nueva lista...' : 'New list...'}
+      />
+
+      {/* ── Modal de Búsqueda Global ────────────────────────────────────────── */}
+      <SearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectResult={handleSelectSearchResult}
       />
     </View>
   );
@@ -368,11 +391,6 @@ export default function ListsScreen({ navigation }) {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  /**
-   * Contenedor raíz: ocupa toda la pantalla.
-   * `paddingTop` se aplica dinámicamente usando `insets.top` para respetar
-   * el notch y la barra de estado en distintos dispositivos.
-   */
   safeArea: { flex: 1 },
 
   /** Cabecera centrada con título y subtítulo */
@@ -380,8 +398,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop:        20,
     paddingBottom:     10,
-    alignItems:        'center',
   },
+  headerNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitles: { alignItems: 'center' },
+  searchIconButton: { padding: 4 },
   title:    { letterSpacing: -0.5, textAlign: 'center' },
   subtitle: { marginTop: 4, textAlign: 'center' },
 

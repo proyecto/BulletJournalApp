@@ -49,6 +49,7 @@ import { createDailyEntry } from '../factories/EntryFactory';
 import { filterEntriesForLogMode, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
+import SearchModal from '../components/SearchModal';
 
 // ─── Constantes de Layout ─────────────────────────────────────────────────────
 
@@ -65,9 +66,11 @@ const SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP;
 /**
  * Pantalla "Daily Log / Week Log / Month Log" del Bullet Journal.
  *
+ * @param {Object} props
+ * @param {Object} [props.navigation] - Objeto de navegación.
  * @returns {JSX.Element} La pantalla renderizada.
  */
-export default function DailyLogScreen() {
+export default function DailyLogScreen({ navigation }) {
 
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
 
@@ -82,6 +85,9 @@ export default function DailyLogScreen() {
 
   /** Visibilidad del desplegable para cambiar de modo de log */
   const [showLogModeMenu, setShowLogModeMenu] = useState(false);
+
+  /** Visibilidad del buscador global */
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   /** Texto del campo de nueva entrada */
   const [inputText, setInputText] = useState('');
@@ -251,6 +257,22 @@ export default function DailyLogScreen() {
     );
   };
 
+  /**
+   * Navega o salta a la entrada seleccionada desde el buscador.
+   */
+  const handleSelectSearchResult = (item) => {
+    if (item.listId && navigation) {
+      navigation.navigate('Listas', {
+        screen: 'ListDetail',
+        params: { list: { id: item.listId, title: item.listName || '' } },
+      });
+    } else if (item.date || item.completedAt) {
+      const targetDate = item.date || item.completedAt;
+      setCurrentLogDate(new Date(targetDate));
+      setLogMode('daily');
+    }
+  };
+
   // ── Renderizado ───────────────────────────────────────────────────────────────
 
   return (
@@ -294,9 +316,14 @@ export default function DailyLogScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity onPress={() => navigatePeriod(1)} style={styles.navButton}>
-            <Ionicons name="chevron-forward" size={24} color={theme.text} />
-          </TouchableOpacity>
+          <View style={styles.rightHeaderButtons}>
+            <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.navButton}>
+              <Ionicons name="search" size={22} color={theme.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigatePeriod(1)} style={styles.navButton}>
+              <Ionicons name="chevron-forward" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -563,6 +590,13 @@ export default function DailyLogScreen() {
           </View>
         </View>
       )}
+
+      {/* ── Modal de Búsqueda Global ────────────────────────────────────────── */}
+      <SearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectResult={handleSelectSearchResult}
+      />
     </View>
   );
 }
@@ -576,6 +610,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, zIndex: 10 },
   headerNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitles: { alignItems: 'center' },
+  rightHeaderButtons: { flexDirection: 'row', alignItems: 'center' },
   titleSelector: {
     flexDirection: 'row',
     alignItems: 'center',

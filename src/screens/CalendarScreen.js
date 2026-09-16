@@ -8,6 +8,7 @@ import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import CustomDatePickerModal from '../components/CustomDatePickerModal';
 import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import SearchModal from '../components/SearchModal';
 
 // Configurar el idioma del calendario
 LocaleConfig.locales['es'] = {
@@ -25,17 +26,30 @@ LocaleConfig.locales['en'] = {
   today: 'Today'
 };
 
-export default function CalendarScreen() {
+export default function CalendarScreen({ navigation }) {
   const { entries, toggleStatus, updateEntryDate } = useJournal();
   const { theme, language, timezone, isDark } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
   const [selectedDate, setSelectedDate] = useState(today);
   const [reschedulingItem, setReschedulingItem] = useState(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   useEffect(() => {
     LocaleConfig.defaultLocale = language;
   }, [language]);
+
+  const handleSelectSearchResult = (item) => {
+    if (item.listId && navigation) {
+      navigation.navigate('Listas', {
+        screen: 'ListDetail',
+        params: { list: { id: item.listId, title: item.listName || '' } },
+      });
+    } else if (item.date || item.completedAt) {
+      const targetDate = item.date || item.completedAt;
+      setSelectedDate(targetDate);
+    }
+  };
 
   const markedDates = useMemo(() => {
     const marks = {};
@@ -151,9 +165,13 @@ export default function CalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
       <View style={styles.header}>
+        <View style={{ width: 28 }} />
         <Text variant="h1" style={[styles.title, { color: theme.text }]}>
           {language === 'es' ? 'Registro Futuro' : 'Future Log'}
         </Text>
+        <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.searchIconButton}>
+          <Ionicons name="search" size={22} color={theme.text} />
+        </TouchableOpacity>
       </View>
       <Calendar
         markingType="custom"
@@ -219,6 +237,13 @@ export default function CalendarScreen() {
         }}
         onClose={() => setReschedulingItem(null)}
       />
+
+      {/* Modal de Búsqueda Global */}
+      <SearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectResult={handleSelectSearchResult}
+      />
     </View>
   );
 }
@@ -227,8 +252,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   title: { letterSpacing: -0.5, textAlign: 'center' },
+  searchIconButton: { padding: 4 },
   calendar: {
     marginBottom: 10,
     borderBottomWidth: 1,
