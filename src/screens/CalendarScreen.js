@@ -27,7 +27,7 @@ LocaleConfig.locales['en'] = {
 
 export default function CalendarScreen() {
   const { entries, toggleStatus, updateEntryDate } = useJournal();
-  const { theme, language, timezone } = useSettings();
+  const { theme, language, timezone, isDark } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -40,49 +40,82 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const marks = {};
     
-    // 1. Poner el texto en azul para los días que tienen tareas/eventos
+    // 1. Identificar todos los días que tienen alguna entrada (tarea, evento o nota)
     entries.forEach(entry => {
       if (entry.listId) return;
 
+      let entryDate = null;
       if (entry.status === 'completed' && entry.completedAt) {
-        marks[entry.completedAt] = { textColor: theme.primary };
+        entryDate = entry.completedAt;
       } else if (entry.status === 'open' && entry.type === 'task') {
         if (entry.date && entry.date > today) {
-          marks[entry.date] = { textColor: theme.primary };
+          entryDate = entry.date;
         } else {
-          marks[today] = { textColor: theme.primary };
+          entryDate = today;
         }
       } else if (entry.date) {
-        marks[entry.date] = { textColor: theme.primary };
+        entryDate = entry.date;
+      }
+
+      if (entryDate) {
+        marks[entryDate] = true;
       }
     });
 
-    // 2. Poner un puntito al día actual (HOY) siempre
-    if (marks[today]) {
-        marks[today].marked = true;
-        marks[today].dotColor = theme.text;
-    } else {
-        marks[today] = { marked: true, dotColor: theme.text };
-    }
+    const result = {};
+    const allDates = new Set([...Object.keys(marks), today, selectedDate]);
 
-    // 3. Marcar el día seleccionado actualmente (fondo invertido)
-    if (marks[selectedDate]) {
-        marks[selectedDate].selected = true;
-        marks[selectedDate].selectedColor = theme.text;
-        marks[selectedDate].textColor = theme.cardBackground; 
-        if (marks[selectedDate].marked) {
-            marks[selectedDate].dotColor = theme.cardBackground;
-        }
-    } else {
-        marks[selectedDate] = {
-            selected: true,
-            selectedColor: theme.text,
-            textColor: theme.cardBackground
+    allDates.forEach(dateStr => {
+      const isToday = dateStr === today;
+      const isSelected = dateStr === selectedDate;
+      const hasEntries = !!marks[dateStr];
+
+      const itemConfig = {};
+
+      // Punto debajo del número si hay alguna tarea, evento o nota
+      if (hasEntries) {
+        itemConfig.marked = true;
+        itemConfig.dotColor = isSelected
+          ? (isDark ? '#000000' : '#FFFFFF')
+          : (theme.primary || '#007AFF');
+      }
+
+      // Estilos customizados
+      if (isSelected) {
+        // Día visualizado: círculo negro con texto en blanco
+        itemConfig.customStyles = {
+          container: {
+            backgroundColor: isDark ? '#FFFFFF' : '#1A1A1A',
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          text: {
+            color: isDark ? '#1A1A1A' : '#FFFFFF',
+            fontWeight: '700',
+          },
         };
-    }
+      } else if (isToday) {
+        // Día actual (HOY): cuadrado gris claro
+        itemConfig.customStyles = {
+          container: {
+            backgroundColor: isDark ? '#38383A' : '#E5E5EA',
+            borderRadius: 4,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          text: {
+            color: theme.text,
+            fontWeight: '700',
+          },
+        };
+      }
 
-    return marks;
-  }, [entries, selectedDate, theme, today]);
+      result[dateStr] = itemConfig;
+    });
+
+    return result;
+  }, [entries, selectedDate, theme, today, isDark]);
 
   // Filtrar las entradas para el día seleccionado usando el servicio central
   const selectedEntries = useMemo(() => {
@@ -123,6 +156,7 @@ export default function CalendarScreen() {
         </Text>
       </View>
       <Calendar
+        markingType="custom"
         current={selectedDate}
         onDayPress={day => {
           setSelectedDate(day.dateString);
