@@ -179,13 +179,21 @@ export function useDragAndDrop({ items, onReorder, slotHeight }) {
       if (finalized) return;
       finalized = true;
 
-      // 1. Resetear todas las animaciones a su estado de reposo (offset 0)
-      Object.values(itemAnimMap).forEach((anim) => {
-        anim.stopAnimation();
-        anim.setValue(0);
-      });
+      // ── FIX: el orden de operaciones es crítico para evitar el flash visual ──
+      //
+      // PROBLEMA ANTERIOR:
+      //   1. anim.setValue(0)         → INMEDIATO (bypassa React) → items visibles en orden ANTIGUO
+      //   2. setOrderedItems(next)    → ASÍNCRONO (React batch)   → items re-renderizan en orden NUEVO
+      //   → El frame entre 1 y 2 mostraba los nombres/orden antiguos (el "flash")
+      //
+      // SOLUCIÓN:
+      //   1. setOrderedItems(next)    → React agenda re-render con nuevo orden
+      //   2. setDraggingIndex(null)   → React agenda re-render sin transforms (isDraggingAny = false)
+      //   → React agrupa ambas en UN SOLO render: items en NUEVO orden SIN transforms
+      //   3. requestAnimationFrame    → resetear valores animados DESPUÉS del render
+      //      (invisibles porque isDraggingAny ya es false y los transforms no se aplican)
 
-      // 2. Reordenar el array y persistir si el elemento cambió de posición
+      // 1. Reordenar el array y persistir si el elemento cambió de posición
       if (fromIdx !== toIdx) {
         const nextItems = [...itemsRef.current];
         const [movedItem] = nextItems.splice(fromIdx, 1);
@@ -198,12 +206,24 @@ export function useDragAndDrop({ items, onReorder, slotHeight }) {
         onReorder(nextItems);
       }
 
-      // 3. Limpiar todas las referencias de estado del drag
+      // 2. Limpiar referencias de arrastre y quitar transforms del JSX
+      //    React agrupa setOrderedItems + setDraggingIndex en un único render:
+      //    → items en nuevo orden, sin transform prop (isDraggingAny = false)
       currentDyRef.current = 0;
       draggingIndexRef.current = null;
       targetIndexRef.current = null;
       isDraggingRef.current = false;
       setDraggingIndex(null);
+
+      // 3. Resetear valores animados en el siguiente frame de animación.
+      //    Para entonces React ya habrá renderiado el nuevo orden sin transforms,
+      //    así que esta operación es visualmente silenciosa (no produce flash).
+      requestAnimationFrame(() => {
+        Object.values(itemAnimMap).forEach((anim) => {
+          anim.stopAnimation();
+          anim.setValue(0);
+        });
+      });
     };
 
     // Calcular el delta hasta el slot final
@@ -266,13 +286,13 @@ export function useDragAndDrop({ items, onReorder, slotHeight }) {
           targetIndexRef.current = index;
           currentDyRef.current = 0;
 
-          // Cancelar cualquier animación residual de un drag anterior
-          Object.values(itemAnimMap).forEach((anim) => anim.stopAnimation());
-
-          // El elemento arrastrado parte desde su posición de reposo (offset 0)
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(0);
-          }
+          // Cancelar y resetear TODAS las animaciones al iniciar un nuevo drag.
+          // Esto limpia cualquier valor residual del drag anterior (p.ej: si el
+          // requestAnimationFrame del finalize aún no había disparado).
+          Object.values(itemAnimMap).forEach((anim) => {
+            anim.stopAnimation();
+            anim.setValue(0);
+          });
 
           setDraggingIndex(index);
           updateSlots(index, index);
