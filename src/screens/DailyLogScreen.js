@@ -1,20 +1,40 @@
 /**
  * @screen DailyLogScreen
- * @description Pantalla principal del Bullet Journal: el "Daily Log".
+ * @pattern Facade Consumer + Observer Consumer + Strategy Consumer
  *
- * Muestra las entradas del día seleccionado, aplica el traspaso automático
- * de tareas abiertas a HOY, registra la fecha de completado en el historial,
- * permite añadir nuevas entradas y reordenarlas mediante slots animados.
+ * ─── RESPONSABILIDAD ─────────────────────────────────────────────────────────
+ * Pantalla principal del Bullet Journal: el "Daily Log".
+ *
+ * Arquitectura en capas:
+ *   ┌──────────────────────────────┐
+ *   │      DailyLogScreen.js       │  ← UI (esta pantalla)
+ *   ├──────────────────────────────┤
+ *   │  useDragAndDrop (Hook)       │  ← Lógica de interacción gestual
+ *   ├──────────────────────────────┤
+ *   │  DailyLogService (Facade)    │  ← Lógica de negocio del diario
+ *   ├──────────────────────────────┤
+ *   │  JournalContext (Facade)     │  ← API de negocio simplificada
+ *   ├──────────────────────────────┤
+ *   │  EntryRepository             │  ← Acceso a datos (SQLite)
+ *   └──────────────────────────────┘
+ *
+ * ─── FUNCIONALIDADES ─────────────────────────────────────────────────────────
+ * - Muestra las entradas del día seleccionado (tareas, eventos, notas).
+ * - Aplica el traspaso automático de tareas abiertas de días anteriores a HOY.
+ * - Permite navegar entre días (← →).
+ * - Registra la fecha de completado en el historial (completedAt).
+ * - Permite añadir nuevas entradas con tipo configurable (tarea/evento/nota).
+ * - Permite reordenar entradas mediante drag & drop animado.
+ * - Permite mover una entrada a otro día mediante pulsación larga.
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   TouchableOpacity,
   ScrollView,
   Animated,
-  PanResponder,
   Alert,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
@@ -26,53 +46,122 @@ import { useSettings } from '../context/SettingsContext';
 import SmartInput from '../components/SmartInput';
 import { createDailyEntry } from '../factories/EntryFactory';
 import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import { useDragAndDrop } from '../hooks/useDragAndDrop';
 
-// Dimensiones fijas de cada "slot" para cálculo matemático perfecto
+// ─── Constantes de Layout ─────────────────────────────────────────────────────
+
+/**
+ * Dimensiones fijas de cada "slot" para el cálculo determinista de posiciones.
+ * SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP  →  unidad de rejilla para el drag.
+ */
 const CARD_HEIGHT = 56;
-const CARD_GAP = 10;
+const CARD_GAP    = 10;
 const SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP;
 
+// ─── Pantalla Principal ───────────────────────────────────────────────────────
+
+/**
+ * Pantalla "Daily Log" del Bullet Journal.
+ *
+ * @returns {JSX.Element} La pantalla renderizada.
+ */
 export default function DailyLogScreen() {
+
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
+
   const { entries, addEntry, toggleStatus, deleteEntry, updateEntryDate, reorderEntries } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
 
   // ── Estado local de la pantalla ──────────────────────────────────────────────
-  const [inputText, setInputText] = useState('');
-  const [selectedType, setSelectedType] = useState('task');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [reschedulingItem, setReschedulingItem] = useState(null);
-  const [currentLogDate, setCurrentLogDate] = useState(new Date());
-  const [draggingIndex, setDraggingIndex] = useState(null);
 
-  // Fechas en formato 'YYYY-MM-DD'
+  /** Texto del campo de nueva entrada */
+  const [inputText, setInputText] = useState('');
+
+  /** Tipo de entrada seleccionado en el selector del SmartInput */
+  const [selectedType, setSelectedType] = useState('task');
+
+  /** Fecha seleccionada para la nueva entrada (puede diferir del día visualizado) */
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  /** Controla la visibilidad del DatePicker para crear nueva entrada */
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  /** Entrada que el usuario quiere mover a otro día (pulsación larga) */
+  const [reschedulingItem, setReschedulingItem] = useState(null);
+
+  /** Fecha del día que se está visualizando actualmente */
+  const [currentLogDate, setCurrentLogDate] = useState(new Date());
+
+  // ── Fechas formateadas ────────────────────────────────────────────────────────
+
+  /** HOY en formato 'YYYY-MM-DD' (constante durante la sesión) */
   const todayStr = getFormattedDate(new Date(), timezone);
+
+  /** Fecha del día visualizado en formato 'YYYY-MM-DD' */
   const currentLogDateStr = getFormattedDate(currentLogDate, timezone);
 
-  // Entradas filtradas para el día visualizado
+  // ── Filtrado de entradas (Facade a DailyLogService) ──────────────────────────
+
+  /**
+   * Delegamos el filtrado al servicio `DailyLogService`.
+   * El servicio aplica las reglas de negocio del Bullet Journal:
+   *   - Entradas creadas para `currentLogDateStr`
+   *   - Tareas abiertas de días ANTERIORES que "migran" a HOY
+   * La pantalla no necesita conocer estas reglas internamente.
+   */
   const dailyLogEntries = filterEntriesForDay(entries, currentLogDateStr, todayStr);
 
-  // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
-  const [orderedEntries, setOrderedEntries] = useState(dailyLogEntries);
+  // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
 
+  /**
+   * Delegamos TODA la lógica de arrastre al hook especializado.
+   *
+   * Strategy: `reorderEntries` es la estrategia de persistencia intercambiable.
+   * Template Method: el hook define el algoritmo; `slotHeight` lo especializa.
+   */
+  const {
+    orderedItems: orderedEntries,
+    setOrderedItems: setOrderedEntries,
+    draggingIndex,
+    itemAnimMap,
+    panResponders,
+    isDraggingRef,
+  } = useDragAndDrop({
+    items: dailyLogEntries,
+    onReorder: reorderEntries,
+    slotHeight: SLOT_HEIGHT,
+  });
+
+  // ── Sincronización con el estado global (Observer) ───────────────────────────
+
+  /**
+   * Sincroniza la fecha del selector con el día visualizado al cambiar de día.
+   */
   useEffect(() => {
     setSelectedDate(currentLogDate);
   }, [currentLogDate]);
 
+  /**
+   * Cuando el contexto global (`entries`) cambia (nueva entrada, toggle, cambio de día),
+   * sincronizamos el estado local con la nueva fuente de verdad.
+   *
+   * GUARD: `isDraggingRef.current` evita que una actualización interrumpa un drag activo.
+   *
+   * Comparación profunda: verificamos `id`, `status`, `text` y `date` para detectar
+   * cualquier cambio relevante (no solo reordenaciones).
+   */
   useEffect(() => {
     if (isDraggingRef.current) return;
 
-    // Solo actualizar si el contenido o el orden han cambiado respecto a la fuente
     const isSame =
       orderedEntries.length === dailyLogEntries.length &&
       orderedEntries.every(
         (item, idx) =>
-          item.id === dailyLogEntries[idx]?.id &&
+          item.id     === dailyLogEntries[idx]?.id     &&
           item.status === dailyLogEntries[idx]?.status &&
-          item.text === dailyLogEntries[idx]?.text &&
-          item.date === dailyLogEntries[idx]?.date
+          item.text   === dailyLogEntries[idx]?.text   &&
+          item.date   === dailyLogEntries[idx]?.date
       );
 
     if (!isSame) {
@@ -84,36 +173,26 @@ export default function DailyLogScreen() {
     }
   }, [entries, currentLogDateStr, todayStr]);
 
-  // Mapa de valores animados estables vinculados directamente al ID único de cada entrada
-  const itemAnimMap = useRef({}).current;
+  // ── Handlers de Negocio ──────────────────────────────────────────────────────
 
-  // Asegurar que cada elemento tenga siempre su propio Animated.Value estable
-  orderedEntries.forEach((item) => {
-    if (!itemAnimMap[item.id]) {
-      itemAnimMap[item.id] = new Animated.Value(0);
-    }
-  });
-
-  // Referencias para controlar el estado de arrastre sin desfases de closure
-  const isDraggingRef = useRef(false);
-  const draggingIndexRef = useRef(null);
-  const targetIndexRef = useRef(null);
-  const currentDyRef = useRef(0);
-  const entriesRef = useRef(orderedEntries);
-  entriesRef.current = orderedEntries;
-
-  // ── Handlers ──────────────────────────────────────────────────────────────────
-
+  /**
+   * Navega al día anterior (-1) o siguiente (+1).
+   * @param {-1 | 1} direction - Dirección de la navegación.
+   */
   const navigateDay = (direction) => {
     const newDate = new Date(currentLogDate);
     newDate.setDate(newDate.getDate() + direction);
     setCurrentLogDate(newDate);
   };
 
+  /**
+   * Añade una nueva entrada al día visualizado.
+   * Usa `EntryFactory.createDailyEntry` para garantizar la estructura correcta.
+   * El `order_index` se asigna al final de la lista actual.
+   */
   const handleAddEntry = () => {
     if (!inputText.trim()) return;
 
-    // EntryFactory.createDailyEntry garantiza la estructura correcta del objeto con order_index
     const newEntry = createDailyEntry(
       inputText,
       selectedType,
@@ -123,15 +202,23 @@ export default function DailyLogScreen() {
     );
     addEntry(newEntry);
 
-    // Reset del texto del input y de la fecha seleccionada
+    // Resetear el input y la fecha al día visualizado
     setInputText('');
     setSelectedDate(currentLogDate);
   };
 
+  /**
+   * Abre el selector de fecha para mover una entrada existente a otro día.
+   * @param {Object} item - La entrada a reprogramar.
+   */
   const handleOpenDatePickerForItem = (item) => {
     setReschedulingItem(item);
   };
 
+  /**
+   * Confirma el movimiento de una entrada a la nueva fecha seleccionada.
+   * @param {Date} newDate - La nueva fecha destino.
+   */
   const handleMoveEntryDate = (newDate) => {
     if (!reschedulingItem) return;
     const newDateStr = getFormattedDate(newDate, timezone);
@@ -139,6 +226,10 @@ export default function DailyLogScreen() {
     setReschedulingItem(null);
   };
 
+  /**
+   * Muestra un diálogo de confirmación antes de eliminar una entrada.
+   * @param {string} id - ID de la entrada a eliminar.
+   */
   const confirmDeleteEntry = (id) => {
     Alert.alert(
       language === 'es' ? 'Eliminar registro' : 'Delete entry',
@@ -156,155 +247,12 @@ export default function DailyLogScreen() {
     );
   };
 
-  /**
-   * Recalcula y anima las posiciones de todos los slots no arrastrados
-   * abriendo el hueco en 'targetIdx' inmediatamente mediante cálculo de rango.
-   */
-  const updateSlots = (fromIdx, toIdx) => {
-    const total = entriesRef.current.length;
-    for (let j = 0; j < total; j++) {
-      if (j === fromIdx) continue;
+  // ── Computed ──────────────────────────────────────────────────────────────────
 
-      const item = entriesRef.current[j];
-      if (!item || !itemAnimMap[item.id]) continue;
-
-      // Rango del elemento entre los restantes (0 .. total-2)
-      const rank = j < fromIdx ? j : j - 1;
-      // Slot asignado cuando el hueco está en toIdx
-      const assignedSlot = rank < toIdx ? rank : rank + 1;
-      // Desplazamiento respecto a su posición de reposo
-      const targetOffset = (assignedSlot - j) * SLOT_HEIGHT;
-
-      // Detener cualquier animación previa para evitar que el spring continúe de fondo
-      itemAnimMap[item.id].stopAnimation();
-      Animated.spring(itemAnimMap[item.id], {
-        toValue: targetOffset,
-        friction: 8,
-        tension: 80,
-        useNativeDriver: false,
-      }).start();
-    }
-  };
-
-  /**
-   * Finaliza el arrastre asentando el elemento en su slot de destino y persistiendo el nuevo orden.
-   */
-  const finishDrag = () => {
-    if (!isDraggingRef.current || draggingIndexRef.current === null) return;
-
-    const fromIdx = draggingIndexRef.current;
-    const toIdx = targetIndexRef.current !== null ? targetIndexRef.current : fromIdx;
-    const draggedItem = entriesRef.current[fromIdx];
-
-    let finalized = false;
-    const finalize = () => {
-      if (finalized) return;
-      finalized = true;
-
-      // 1. Detener todas las animaciones activas y resetear sus valores a 0
-      Object.values(itemAnimMap).forEach((anim) => {
-        anim.stopAnimation();
-        anim.setValue(0);
-      });
-
-      // 2. Si cambió de posición, calculamos y actualizamos el estado local atómicamente
-      if (fromIdx !== toIdx) {
-        const nextEntries = [...entriesRef.current];
-        const [movedItem] = nextEntries.splice(fromIdx, 1);
-        nextEntries.splice(toIdx, 0, movedItem);
-
-        // Actualizar el estado local y persistir
-        setOrderedEntries(nextEntries);
-        reorderEntries(nextEntries);
-      }
-
-      // 3. Resetear estado de arrastre
-      currentDyRef.current = 0;
-      draggingIndexRef.current = null;
-      targetIndexRef.current = null;
-      isDraggingRef.current = false;
-      setDraggingIndex(null);
-    };
-
-    const finalSlotDelta = (toIdx - fromIdx) * SLOT_HEIGHT;
-    const currentVal = currentDyRef.current || 0;
-
-    // Si apenas se movió del slot objetivo o no existe la tarjeta, finalizar de inmediato
-    if (!draggedItem || !itemAnimMap[draggedItem.id] || Math.abs(currentVal - finalSlotDelta) < 3) {
-      finalize();
-      return;
-    }
-
-    // Temporizador de seguridad: asegura que el estado se libere siempre
-    const safetyTimer = setTimeout(finalize, 250);
-
-    itemAnimMap[draggedItem.id].stopAnimation();
-    Animated.spring(itemAnimMap[draggedItem.id], {
-      toValue: finalSlotDelta,
-      friction: 8,
-      tension: 90,
-      useNativeDriver: false,
-    }).start(() => {
-      clearTimeout(safetyTimer);
-      finalize();
-    });
-  };
-
-  // PanResponders individuales asociados al botón de arrastre de cada fila
-  const panResponders = useMemo(() => {
-    return orderedEntries.map((item, index) =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 2,
-        onPanResponderTerminationRequest: () => false, // Impide que ScrollView u otros contenedores aborten el gesto
-        onPanResponderGrant: () => {
-          isDraggingRef.current = true;
-          draggingIndexRef.current = index;
-          targetIndexRef.current = index;
-          currentDyRef.current = 0;
-
-          // Detener animaciones previas en todos los elementos
-          Object.values(itemAnimMap).forEach((anim) => anim.stopAnimation());
-
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(0);
-          }
-          setDraggingIndex(index);
-          updateSlots(index, index);
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const total = entriesRef.current.length;
-          const minDy = -index * SLOT_HEIGHT;
-          const maxDy = (total - 1 - index) * SLOT_HEIGHT;
-
-          // Clampear el desplazamiento estrictamente dentro del rango de los slots disponibles
-          const clampedDy = Math.max(minDy - 6, Math.min(maxDy + 6, gestureState.dy));
-          currentDyRef.current = clampedDy;
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(clampedDy);
-          }
-
-          const rawTarget = Math.round(index + clampedDy / SLOT_HEIGHT);
-          const clampedTarget = Math.max(0, Math.min(total - 1, rawTarget));
-
-          if (clampedTarget !== targetIndexRef.current) {
-            targetIndexRef.current = clampedTarget;
-            updateSlots(index, clampedTarget);
-          }
-        },
-        onPanResponderRelease: () => {
-          finishDrag();
-        },
-        onPanResponderTerminate: () => {
-          finishDrag();
-        },
-      })
-    );
-  }, [orderedEntries.length, orderedEntries]);
-
+  /** Indica si el usuario está viendo el día de hoy */
   const isViewingToday = currentLogDateStr === todayStr;
+
+  // ── Renderizado ───────────────────────────────────────────────────────────────
 
   return (
     <View
@@ -313,7 +261,7 @@ export default function DailyLogScreen() {
         { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) },
       ]}
     >
-      {/* Cabecera con navegación de días */}
+      {/* ── Cabecera con navegación de días ──────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerNav}>
           <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.navButton}>
@@ -338,7 +286,7 @@ export default function DailyLogScreen() {
         </View>
       </View>
 
-      {/* Lista de entradas del día con ordenación por slots */}
+      {/* ── Lista de entradas con drag & drop animado ────────────────────── */}
       <View style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.listContent}
@@ -346,18 +294,22 @@ export default function DailyLogScreen() {
           scrollEnabled={draggingIndex === null}
         >
           {orderedEntries.length === 0 ? (
+            // ── Estado vacío ────────────────────────────────────────────────
             <View style={styles.emptyContainer}>
               <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
                 {language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.'}
               </Text>
             </View>
           ) : (
+            // ── Tarjetas de entrada (con drag & drop animado) ───────────────
             orderedEntries.map((item, index) => {
-              const isDragging = draggingIndex === index;
+              const isDragging    = draggingIndex === index;
               const isDraggingAny = draggingIndex !== null;
+
+              // Cálculos de presentación delegados al servicio
               const isCompleted = isEntryCompleted(item, todayStr);
-              const iconName = getEntryIcon(item, todayStr);
-              const iconColor = isCompleted ? theme.textCompleted : theme.text;
+              const iconName    = getEntryIcon(item, todayStr);
+              const iconColor   = isCompleted ? theme.textCompleted : theme.text;
 
               return (
                 <Animated.View
@@ -368,8 +320,8 @@ export default function DailyLogScreen() {
                       ? { transform: [{ translateY: itemAnimMap[item.id] }] }
                       : null,
                     {
-                      zIndex: isDragging ? 999 : 1,
-                      elevation: isDragging ? 8 : 1,
+                      zIndex:    isDragging ? 999 : 1,
+                      elevation: isDragging ? 8   : 1,
                     },
                   ]}
                 >
@@ -378,13 +330,14 @@ export default function DailyLogScreen() {
                       styles.card,
                       {
                         backgroundColor: theme.cardBackground,
-                        shadowColor: theme.text,
-                        shadowOpacity: isDragging ? 0.3 : 0.03,
-                        opacity: isDragging ? 0.95 : 1,
+                        shadowColor:     theme.text,
+                        shadowOpacity:   isDragging ? 0.3  : 0.03,
+                        opacity:         isDragging ? 0.95 : 1,
                       },
                       isCompleted && { backgroundColor: theme.cardCompleted },
                     ]}
                   >
+                    {/* ── Área principal: toggle de estado + mover fecha ──── */}
                     <TouchableOpacity
                       style={styles.cardMainArea}
                       onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
@@ -419,7 +372,7 @@ export default function DailyLogScreen() {
                       </View>
                     </TouchableOpacity>
 
-                    {/* Botones de acción: Papelera y Tirador de arrastre */}
+                    {/* ── Acciones: eliminar y arrastrar ──────────────────── */}
                     <View style={styles.actionButtons}>
                       <TouchableOpacity
                         style={styles.iconButton}
@@ -435,9 +388,7 @@ export default function DailyLogScreen() {
                         style={styles.dragHandle}
                         {...panResponders[index]?.panHandlers}
                         accessibilityLabel={
-                          language === 'es'
-                            ? 'Arrastrar para ordenar'
-                            : 'Drag to reorder'
+                          language === 'es' ? 'Arrastrar para ordenar' : 'Drag to reorder'
                         }
                       >
                         <Ionicons
@@ -455,7 +406,7 @@ export default function DailyLogScreen() {
         </ScrollView>
       </View>
 
-      {/* Input reutilizable con selector de tipo */}
+      {/* ── Input con selector de tipo y fecha ──────────────────────────── */}
       <SmartInput
         value={inputText}
         onChangeText={setInputText}
@@ -463,6 +414,7 @@ export default function DailyLogScreen() {
         placeholder={language === 'es' ? 'Añadir...' : 'Add entry...'}
         topContent={
           <>
+            {/* Selector de tipo: Tarea */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'task' ? theme.text : theme.inputBackground }]}
               onPress={() => setSelectedType('task')}
@@ -470,6 +422,8 @@ export default function DailyLogScreen() {
             >
               <Ionicons name="ellipse" size={10} color={selectedType === 'task' ? theme.cardBackground : theme.iconInactive} />
             </TouchableOpacity>
+
+            {/* Selector de tipo: Evento */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'event' ? theme.text : theme.inputBackground }]}
               onPress={() => setSelectedType('event')}
@@ -477,6 +431,8 @@ export default function DailyLogScreen() {
             >
               <Ionicons name="ellipse-outline" size={12} color={selectedType === 'event' ? theme.cardBackground : theme.iconInactive} />
             </TouchableOpacity>
+
+            {/* Selector de tipo: Nota */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'note' ? theme.text : theme.inputBackground }]}
               onPress={() => setSelectedType('note')}
@@ -487,6 +443,7 @@ export default function DailyLogScreen() {
           </>
         }
         leftContent={
+          /* Botón de calendario para seleccionar fecha de la nueva entrada */
           <TouchableOpacity
             style={styles.calendarButton}
             onPress={() => setShowDatePicker(true)}
@@ -497,7 +454,7 @@ export default function DailyLogScreen() {
               size={22}
               color={
                 getFormattedDate(selectedDate, timezone) !== currentLogDateStr
-                  ? theme.primary
+                  ? theme.primary       // Destacado si la fecha difiere del día actual
                   : theme.textSecondary
               }
             />
@@ -505,7 +462,7 @@ export default function DailyLogScreen() {
         }
       />
 
-      {/* Modal selector de fecha para crear nueva entrada */}
+      {/* ── Modal: selector de fecha para nueva entrada ──────────────────── */}
       <CustomDatePickerModal
         visible={showDatePicker}
         selectedDate={selectedDate}
@@ -513,7 +470,7 @@ export default function DailyLogScreen() {
         onClose={() => setShowDatePicker(false)}
       />
 
-      {/* Modal selector de fecha para MOVER una entrada existente al hacer pulsación prolongada */}
+      {/* ── Modal: selector de fecha para MOVER entrada existente ────────── */}
       <CustomDatePickerModal
         visible={!!reschedulingItem}
         selectedDate={reschedulingItem?.date || currentLogDateStr}
@@ -524,75 +481,86 @@ export default function DailyLogScreen() {
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+
+  /** Cabecera con navegación de días */
   header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10 },
   headerNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitles: { alignItems: 'center' },
   navButton: { padding: 8 },
   title: { letterSpacing: -0.5 },
   subtitle: { marginTop: 4, textTransform: 'capitalize' },
+
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-    flexGrow: 1,
+    paddingTop:        10,
+    paddingBottom:     20,
+    flexGrow:          1,
   },
+
+  /** Slot de altura fija: unidad fundamental de la rejilla del drag */
   slotContainer: {
-    height: CARD_HEIGHT,
+    height:       CARD_HEIGHT,
     marginBottom: CARD_GAP,
   },
+
   card: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex:              1,
+    flexDirection:     'row',
+    alignItems:        'center',
     paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    borderRadius:      12,
+    shadowOffset:      { width: 0, height: 2 },
+    shadowRadius:      4,
   },
   cardMainArea: {
-    flex: 1,
+    flex:          1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems:    'center',
     paddingVertical: 12,
   },
   iconContainer: {
-    width: 24,
-    alignItems: 'center',
+    width:          24,
+    alignItems:     'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight:    12,
   },
   taskIcon: { transform: [{ scale: 0.8 }] },
   cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex:           1,
+    flexDirection:  'row',
+    alignItems:     'center',
     justifyContent: 'space-between',
   },
   cardText: { flex: 1 },
+
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   iconButton: { padding: 8, marginLeft: 2 },
   dragHandle: {
-    padding: 8,
-    marginLeft: 4,
-    marginRight: -4,
-    alignItems: 'center',
+    padding:        8,
+    marginLeft:     4,
+    marginRight:    -4,
+    alignItems:     'center',
     justifyContent: 'center',
   },
+
   emptyContainer: {
-    alignItems: 'center',
+    alignItems:  'center',
     justifyContent: 'center',
-    marginTop: 60,
+    marginTop:   60,
   },
   emptyText: {},
+
+  /** Selector de tipo de entrada (tarea/evento/nota) */
   typeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection:    'row',
+    alignItems:       'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical:   6,
+    borderRadius:      16,
   },
   calendarButton: { padding: 4 },
 });
-
