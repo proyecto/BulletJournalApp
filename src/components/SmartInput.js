@@ -144,6 +144,7 @@ export default function SmartInput({
 
       {/* ─── 2. MODAL NATIVO FLOTANTE SOBRE EL TECLADO ─── */}
       <Modal
+        testID="smart-input-modal"
         visible={isOpen}
         transparent={true}
         animationType="fade"

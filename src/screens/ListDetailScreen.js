@@ -43,13 +43,25 @@ export default function ListDetailScreen({ route, navigation }) {
   const [draggingIndex, setDraggingIndex] = useState(null);
 
   // ── Filtrado de entradas de la lista ──────────────────────────────────────────
-  const listItems = useMemo(() => entries.filter((entry) => entry.listId === list.id), [entries, list.id]);
+  const listItems = useMemo(
+    () =>
+      entries
+        .filter((entry) => entry.listId === list.id)
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    [entries, list.id]
+  );
 
   // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
   const [orderedItems, setOrderedItems] = useState(listItems);
 
   useEffect(() => {
-    if (!isDraggingRef.current) {
+    if (isDraggingRef.current) return;
+
+    const isSameOrder =
+      orderedItems.length === listItems.length &&
+      orderedItems.every((item, idx) => item.id === listItems[idx]?.id);
+
+    if (!isSameOrder) {
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);

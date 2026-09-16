@@ -32,7 +32,13 @@ export default function ListsScreen({ navigation }) {
   const [orderedLists, setOrderedLists] = useState(lists);
 
   useEffect(() => {
-    if (!isDraggingRef.current) {
+    if (isDraggingRef.current) return;
+
+    const isSameOrder =
+      orderedLists.length === lists.length &&
+      orderedLists.every((item, idx) => item.id === lists[idx]?.id);
+
+    if (!isSameOrder) {
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);

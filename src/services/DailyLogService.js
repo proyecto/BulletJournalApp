@@ -86,7 +86,7 @@ export const filterEntriesForDay = (allEntries, viewingDateStr, todayStr) => {
     }
 
     return false;
-  });
+  }).sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
 };
 
 /**

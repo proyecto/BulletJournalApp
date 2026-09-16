@@ -62,7 +62,14 @@ export default function DailyLogScreen() {
   }, [currentLogDate]);
 
   useEffect(() => {
-    if (!isDraggingRef.current) {
+    if (isDraggingRef.current) return;
+
+    // Solo actualizar si el orden o los IDs han cambiado respecto a la fuente
+    const isSameOrder =
+      orderedEntries.length === dailyLogEntries.length &&
+      orderedEntries.every((item, idx) => item.id === dailyLogEntries[idx]?.id);
+
+    if (!isSameOrder) {
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
