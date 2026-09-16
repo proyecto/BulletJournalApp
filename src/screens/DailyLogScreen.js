@@ -64,12 +64,18 @@ export default function DailyLogScreen() {
   useEffect(() => {
     if (isDraggingRef.current) return;
 
-    // Solo actualizar si el orden o los IDs han cambiado respecto a la fuente
-    const isSameOrder =
+    // Solo actualizar si el contenido o el orden han cambiado respecto a la fuente
+    const isSame =
       orderedEntries.length === dailyLogEntries.length &&
-      orderedEntries.every((item, idx) => item.id === dailyLogEntries[idx]?.id);
+      orderedEntries.every(
+        (item, idx) =>
+          item.id === dailyLogEntries[idx]?.id &&
+          item.status === dailyLogEntries[idx]?.status &&
+          item.text === dailyLogEntries[idx]?.text &&
+          item.date === dailyLogEntries[idx]?.date
+      );
 
-    if (!isSameOrder) {
+    if (!isSame) {
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
@@ -169,13 +175,13 @@ export default function DailyLogScreen() {
       // Desplazamiento respecto a su posición de reposo
       const targetOffset = (assignedSlot - j) * SLOT_HEIGHT;
 
-      // Detener cualquier animación previa para evitar que el spring nativo continúe de fondo
+      // Detener cualquier animación previa para evitar que el spring continúe de fondo
       itemAnimMap[item.id].stopAnimation();
       Animated.spring(itemAnimMap[item.id], {
         toValue: targetOffset,
         friction: 8,
         tension: 80,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
   };
@@ -195,7 +201,7 @@ export default function DailyLogScreen() {
       if (finalized) return;
       finalized = true;
 
-      // 1. Detener todas las animaciones nativas activas y resetear sus valores a 0
+      // 1. Detener todas las animaciones activas y resetear sus valores a 0
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
@@ -229,7 +235,7 @@ export default function DailyLogScreen() {
       return;
     }
 
-    // Temporizador de seguridad: asegura que el estado se libere siempre aunque el native driver no emita callback
+    // Temporizador de seguridad: asegura que el estado se libere siempre
     const safetyTimer = setTimeout(finalize, 250);
 
     itemAnimMap[draggedItem.id].stopAnimation();
@@ -237,7 +243,7 @@ export default function DailyLogScreen() {
       toValue: finalSlotDelta,
       friction: 8,
       tension: 90,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(() => {
       clearTimeout(safetyTimer);
       finalize();
@@ -348,7 +354,7 @@ export default function DailyLogScreen() {
           ) : (
             orderedEntries.map((item, index) => {
               const isDragging = draggingIndex === index;
-              const translateY = itemAnimMap[item.id] || 0;
+              const isDraggingAny = draggingIndex !== null;
               const isCompleted = isEntryCompleted(item, todayStr);
               const iconName = getEntryIcon(item, todayStr);
               const iconColor = isCompleted ? theme.textCompleted : theme.text;
@@ -358,8 +364,10 @@ export default function DailyLogScreen() {
                   key={item.id}
                   style={[
                     styles.slotContainer,
+                    isDraggingAny && itemAnimMap[item.id]
+                      ? { transform: [{ translateY: itemAnimMap[item.id] }] }
+                      : null,
                     {
-                      transform: [{ translateY }],
                       zIndex: isDragging ? 999 : 1,
                       elevation: isDragging ? 8 : 1,
                     },

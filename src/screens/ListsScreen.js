@@ -34,11 +34,14 @@ export default function ListsScreen({ navigation }) {
   useEffect(() => {
     if (isDraggingRef.current) return;
 
-    const isSameOrder =
+    const isSame =
       orderedLists.length === lists.length &&
-      orderedLists.every((item, idx) => item.id === lists[idx]?.id);
+      orderedLists.every(
+        (item, idx) =>
+          item.id === lists[idx]?.id && item.title === lists[idx]?.title
+      );
 
-    if (!isSameOrder) {
+    if (!isSame) {
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
@@ -108,13 +111,13 @@ export default function ListsScreen({ navigation }) {
       // Desplazamiento respecto a su posición de reposo
       const targetOffset = (assignedSlot - j) * SLOT_HEIGHT;
 
-      // Detener cualquier animación previa para evitar que el spring nativo continúe de fondo
+      // Detener cualquier animación previa para evitar que el spring continúe de fondo
       itemAnimMap[item.id].stopAnimation();
       Animated.spring(itemAnimMap[item.id], {
         toValue: targetOffset,
         friction: 8,
         tension: 80,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
   };
@@ -134,7 +137,7 @@ export default function ListsScreen({ navigation }) {
       if (finalized) return;
       finalized = true;
 
-      // 1. Detener todas las animaciones nativas activas y resetear sus valores a 0
+      // 1. Detener todas las animaciones activas y resetear sus valores a 0
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
@@ -168,7 +171,7 @@ export default function ListsScreen({ navigation }) {
       return;
     }
 
-    // Temporizador de seguridad: asegura que el estado se libere siempre aunque el native driver no emita callback
+    // Temporizador de seguridad: asegura que el estado se libere siempre
     const safetyTimer = setTimeout(finalize, 250);
 
     itemAnimMap[draggedItem.id].stopAnimation();
@@ -176,7 +179,7 @@ export default function ListsScreen({ navigation }) {
       toValue: finalSlotDelta,
       friction: 8,
       tension: 90,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(() => {
       clearTimeout(safetyTimer);
       finalize();
@@ -279,15 +282,17 @@ export default function ListsScreen({ navigation }) {
           ) : (
             orderedLists.map((item, index) => {
               const isDragging = draggingIndex === index;
-              const translateY = itemAnimMap[item.id] || 0;
+              const isDraggingAny = draggingIndex !== null;
 
               return (
                 <Animated.View
                   key={item.id}
                   style={[
                     styles.slotContainer,
+                    isDraggingAny && itemAnimMap[item.id]
+                      ? { transform: [{ translateY: itemAnimMap[item.id] }] }
+                      : null,
                     {
-                      transform: [{ translateY }],
                       zIndex: isDragging ? 999 : 1,
                       elevation: isDragging ? 8 : 1,
                     },
