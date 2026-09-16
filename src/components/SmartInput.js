@@ -6,7 +6,7 @@
  * nativo con fondo atenuado y el input flotando exactamente sobre el teclado virtual.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -15,6 +15,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
@@ -36,9 +37,10 @@ export default function SmartInput({
     setIsOpen(true);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    Keyboard.dismiss();
     setIsOpen(false);
-  };
+  }, []);
 
   const handleModalShow = () => {
     // Delay de 60ms para garantizar que el foco nativo se aplique tras el render del Dialog
@@ -52,6 +54,34 @@ export default function SmartInput({
     onSubmit();
     handleClose();
   };
+
+  // Cierra automáticamente el modal cuando se oculta el teclado (p.ej. al pulsar el botón atrás de Android)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let keyboardHasShown = false;
+
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      keyboardHasShown = true;
+    });
+
+    // Margen de seguridad en caso de que el teclado tarde en responder o no emita evento de apertura
+    const safetyTimer = setTimeout(() => {
+      keyboardHasShown = true;
+    }, 400);
+
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      if (keyboardHasShown) {
+        handleClose();
+      }
+    });
+
+    return () => {
+      clearTimeout(safetyTimer);
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [isOpen, handleClose]);
 
   const defaultPlaceholder = language === 'es' ? 'Escribe aquí...' : 'Type here...';
 
