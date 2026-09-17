@@ -32,6 +32,102 @@ const MONTH_NAMES_EN = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const ITEM_HEIGHT = 40;
+const VISIBLE_ITEMS = 3;
+
+const HOURS_ARRAY = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES_ARRAY = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+/**
+ * Componente Rueda Giratoria de selección (Wheel Picker) vertical para React Native.
+ */
+function WheelColumn({ items, value, onChange, theme }) {
+  const scrollViewRef = useRef(null);
+
+  const selectedIndex = useMemo(() => {
+    const idx = items.indexOf(value);
+    return idx >= 0 ? idx : 0;
+  }, [items, value]);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({
+        y: selectedIndex * ITEM_HEIGHT,
+        animated: true,
+      });
+    }
+  }, [selectedIndex]);
+
+  const handleScrollEnd = (e) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(items.length - 1, index));
+    if (items[clampedIndex] !== value) {
+      onChange(items[clampedIndex]);
+    }
+  };
+
+  return (
+    <View style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS, width: 68, overflow: 'hidden', position: 'relative' }}>
+      {/* Indicador visual de elemento seleccionado (Caja central) */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: ITEM_HEIGHT,
+          left: 0,
+          right: 0,
+          height: ITEM_HEIGHT,
+          borderTopWidth: 1.5,
+          borderBottomWidth: 1.5,
+          borderColor: theme.text,
+          backgroundColor: theme.inputBackground,
+          borderRadius: 10,
+        }}
+      />
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleScrollEnd}
+        contentContainerStyle={{
+          paddingVertical: ITEM_HEIGHT,
+        }}
+      >
+        {items.map((item, idx) => {
+          const isSelected = item === value;
+          return (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.7}
+              style={{
+                height: ITEM_HEIGHT,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={() => {
+                scrollViewRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
+                onChange(item);
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: isSelected ? 20 : 16,
+                  fontWeight: isSelected ? '700' : '400',
+                  color: isSelected ? theme.text : theme.textSecondary + '70',
+                }}
+              >
+                {item}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function CustomDatePickerModal({
   visible,
   selectedDate,
@@ -352,7 +448,7 @@ export default function CustomDatePickerModal({
                 })}
               </View>
 
-              {/* Sección de Hora Específica (Opcional) */}
+              {/* Sección de Hora Específica (Ruedas Giratorias 00..23 / 00..59) */}
               <View style={styles.timeSectionWrapper}>
                 <View style={styles.timeSectionHeader}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -372,44 +468,97 @@ export default function CustomDatePickerModal({
                       <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
                     </TouchableOpacity>
                   ) : (
-                    <Text variant="caption" style={{ color: theme.textSecondary }}>
-                      {language === 'es' ? 'Sin hora (todo el día)' : 'No time (all day)'}
-                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        const now = new Date();
+                        const h = String(now.getHours()).padStart(2, '0');
+                        const m = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
+                        setTempTime(`${h}:${m}`);
+                      }}
+                      style={[styles.activateTimeButton, { backgroundColor: theme.inputBackground }]}
+                    >
+                      <Ionicons name="add" size={14} color={theme.text} />
+                      <Text variant="caption" style={{ color: theme.text, fontWeight: '600' }}>
+                        {language === 'es' ? 'Añadir hora' : 'Add time'}
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
 
-                {/* Chips de horas frecuentes */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.timeChipsContent}
-                >
-                  {['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '16:00', '18:00', '20:00'].map((timeStr) => {
-                    const isSelected = tempTime === timeStr;
-                    return (
-                      <TouchableOpacity
-                        key={timeStr}
-                        onPress={() => setTempTime(isSelected ? null : timeStr)}
-                        style={[
-                          styles.timeChip,
-                          {
-                            backgroundColor: isSelected ? theme.text : theme.inputBackground,
-                          },
-                        ]}
-                      >
-                        <Text
-                          variant="micro"
-                          style={{
-                            color: isSelected ? theme.cardBackground : theme.text,
-                            fontWeight: isSelected ? '700' : '500',
-                          }}
-                        >
-                          {timeStr}
+                {tempTime ? (
+                  <View style={styles.pickerAndPresetsRow}>
+                    {/* Ruedas Giratorias para Hora (00..23) y Minutos (00..59) */}
+                    <View style={styles.wheelContainer}>
+                      <View style={styles.wheelColumnLabelWrapper}>
+                        <Text variant="micro" style={{ color: theme.textSecondary, fontWeight: '600' }}>
+                          {language === 'es' ? 'HORA' : 'HOUR'}
                         </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                        <WheelColumn
+                          items={HOURS_ARRAY}
+                          value={tempTime.split(':')[0] || '09'}
+                          onChange={(h) => {
+                            const m = tempTime.split(':')[1] || '00';
+                            setTempTime(`${h}:${m}`);
+                          }}
+                          theme={theme}
+                        />
+                      </View>
+
+                      <Text style={{ fontSize: 24, fontWeight: '700', color: theme.text, marginTop: 16 }}>
+                        :
+                      </Text>
+
+                      <View style={styles.wheelColumnLabelWrapper}>
+                        <Text variant="micro" style={{ color: theme.textSecondary, fontWeight: '600' }}>
+                          {language === 'es' ? 'MIN' : 'MIN'}
+                        </Text>
+                        <WheelColumn
+                          items={MINUTES_ARRAY}
+                          value={tempTime.split(':')[1] || '00'}
+                          onChange={(m) => {
+                            const h = tempTime.split(':')[0] || '09';
+                            setTempTime(`${h}:${m}`);
+                          }}
+                          theme={theme}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Chips Atajos de horas frecuentes */}
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.timeChipsContent}
+                      style={{ marginTop: 4 }}
+                    >
+                      {['08:00', '09:30', '10:00', '12:15', '14:00', '15:15', '16:30', '18:00', '20:00'].map((timeStr) => {
+                        const isSelected = tempTime === timeStr;
+                        return (
+                          <TouchableOpacity
+                            key={timeStr}
+                            onPress={() => setTempTime(timeStr)}
+                            style={[
+                              styles.timeChip,
+                              {
+                                backgroundColor: isSelected ? theme.text : theme.inputBackground,
+                              },
+                            ]}
+                          >
+                            <Text
+                              variant="micro"
+                              style={{
+                                color: isSelected ? theme.cardBackground : theme.text,
+                                fontWeight: isSelected ? '700' : '500',
+                              }}
+                            >
+                              {timeStr}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                ) : null}
               </View>
 
               {/* Botón de Confirmación */}
@@ -557,7 +706,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  activateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   clearTimeBadge: {
     flexDirection: 'row',
@@ -566,6 +723,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
+  },
+  pickerAndPresetsRow: {
+    alignItems: 'center',
+  },
+  wheelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 4,
+  },
+  wheelColumnLabelWrapper: {
+    alignItems: 'center',
+    gap: 2,
   },
   timeChipsContent: {
     gap: 6,
