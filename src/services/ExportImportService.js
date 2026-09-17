@@ -54,16 +54,17 @@ export const generateMarkdownString = (entries = [], lists = [], language = 'es'
       dateEntries.forEach(entry => {
         const signifier = getSignifierSymbol(entry.signifier);
         const prefix = signifier ? `${signifier} ` : '';
+        const timeStr = entry.time ? `[${entry.time}] ` : '';
 
         if (entry.type === 'note') {
-          md += `- ${prefix}${entry.text}\n`;
+          md += `- ${prefix}${timeStr}${entry.text}\n`;
         } else if (entry.type === 'event') {
           const isDone = entry.status === 'completed' || entry.completedAt;
-          md += `- ${isDone ? '[x]' : '[ ]'} ${prefix}o ${entry.text}\n`;
+          md += `- ${isDone ? '[x]' : '[ ]'} ${prefix}o ${timeStr}${entry.text}\n`;
         } else {
           // Tarea (task)
           const isDone = entry.status === 'completed' || entry.completedAt;
-          md += `- ${isDone ? '[x]' : '[ ]'} ${prefix}${entry.text}\n`;
+          md += `- ${isDone ? '[x]' : '[ ]'} ${prefix}${timeStr}${entry.text}\n`;
         }
       });
       md += `\n`;

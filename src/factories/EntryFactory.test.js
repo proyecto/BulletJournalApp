@@ -44,6 +44,7 @@ describe('EntryFactory', () => {
         listId: null,
         order_index: 0, // default
         signifier: null,
+        time: null,
       });
       expect(dateUtils.getFormattedDate).toHaveBeenCalledWith(date, timezone);
     });
@@ -58,6 +59,18 @@ describe('EntryFactory', () => {
       const inspirationEntry = createDailyEntry('! Great Idea', 'note', new Date(), 'UTC');
       expect(inspirationEntry.signifier).toBe('inspiration');
       expect(inspirationEntry.text).toBe('Great Idea');
+    });
+
+    it('auto-detects time (e.g. 10:30) from text or accepts explicit time parameter', () => {
+      dateUtils.getFormattedDate.mockReturnValue('2021-07-01');
+
+      const textTimeEntry = createDailyEntry('10:30 Meeting with team', 'event', new Date(), 'UTC');
+      expect(textTimeEntry.time).toBe('10:30');
+      expect(textTimeEntry.text).toBe('Meeting with team');
+
+      const explicitTimeEntry = createDailyEntry('Gym session', 'task', new Date(), 'UTC', 0, null, '18:00');
+      expect(explicitTimeEntry.time).toBe('18:00');
+      expect(explicitTimeEntry.text).toBe('Gym session');
     });
 
     it('uses a new Date if no date is provided and handles custom orderIndex', () => {

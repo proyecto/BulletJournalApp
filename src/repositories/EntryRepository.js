@@ -41,7 +41,7 @@ export const getAllEntries = async () => {
  */
 export const insertEntry = async (entry) => {
   await db.runAsync(
-    'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index, signifier) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index, signifier, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       entry.id,
       entry.text,
@@ -52,6 +52,7 @@ export const insertEntry = async (entry) => {
       entry.listId ?? null,
       entry.order_index ?? 0,
       entry.signifier ?? null,
+      entry.time ?? null,
     ]
   );
 };
@@ -66,6 +67,33 @@ export const updateEntrySignifier = async (id, newSignifier) => {
   await db.runAsync(
     'UPDATE entries SET signifier = ? WHERE id = ?',
     [newSignifier ?? null, id]
+  );
+};
+
+/**
+ * Actualiza la hora específica ('HH:mm' | null) de una entrada.
+ * @param {string} id - ID de la entrada.
+ * @param {string|null} newTime - La nueva hora en formato 'HH:mm' o null.
+ * @returns {Promise<void>}
+ */
+export const updateEntryTime = async (id, newTime) => {
+  await db.runAsync(
+    'UPDATE entries SET time = ? WHERE id = ?',
+    [newTime ?? null, id]
+  );
+};
+
+/**
+ * Actualiza la fecha y hora de una entrada simultáneamente.
+ * @param {string} id - ID de la entrada.
+ * @param {string} newDate - La nueva fecha ('YYYY-MM-DD').
+ * @param {string|null} newTime - La nueva hora ('HH:mm' | null).
+ * @returns {Promise<void>}
+ */
+export const updateEntryDateTime = async (id, newDate, newTime) => {
+  await db.runAsync(
+    'UPDATE entries SET date = ?, time = ? WHERE id = ?',
+    [newDate, newTime ?? null, id]
   );
 };
 

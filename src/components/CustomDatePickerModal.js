@@ -35,6 +35,7 @@ const MONTH_NAMES_EN = [
 export default function CustomDatePickerModal({
   visible,
   selectedDate,
+  selectedTime: initialSelectedTime = null,
   onSelectDate,
   onClose,
 }) {
@@ -58,6 +59,7 @@ export default function CustomDatePickerModal({
   const initialDate = useMemo(() => parseSafeDate(selectedDate), [selectedDate]);
 
   const [tempDate, setTempDate] = useState(initialDate);
+  const [tempTime, setTempTime] = useState(initialSelectedTime);
   // Mes y año visualizados en el calendario (1er día de ese mes)
   const [viewingMonth, setViewingMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
 
@@ -65,9 +67,10 @@ export default function CustomDatePickerModal({
     if (visible) {
       const d = parseSafeDate(selectedDate);
       setTempDate(d);
+      setTempTime(initialSelectedTime || null);
       setViewingMonth(new Date(d.getFullYear(), d.getMonth(), 1));
     }
-  }, [visible, selectedDate]);
+  }, [visible, selectedDate, initialSelectedTime]);
 
   const todayStr = getFormattedDate(new Date(), timezone);
   const tempDateStr = getFormattedDate(tempDate, timezone);
@@ -196,7 +199,7 @@ export default function CustomDatePickerModal({
   };
 
   const handleConfirm = () => {
-    onSelectDate(tempDate);
+    onSelectDate(tempDate, tempTime);
     onClose();
   };
 
@@ -231,13 +234,14 @@ export default function CustomDatePickerModal({
               <View style={styles.header}>
                 <View>
                   <Text variant="h2" style={[styles.headerTitle, { color: theme.text }]}>
-                    {language === 'es' ? 'Seleccionar fecha' : 'Select date'}
+                    {language === 'es' ? 'Seleccionar fecha u hora' : 'Select date or time'}
                   </Text>
                   <Text variant="caption" style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
                     {tempDate.toLocaleDateString(
                       language === 'es' ? 'es-ES' : 'en-US',
                       { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
                     )}
+                    {tempTime ? ` · ${tempTime}` : ''}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -346,6 +350,66 @@ export default function CustomDatePickerModal({
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+
+              {/* Sección de Hora Específica (Opcional) */}
+              <View style={styles.timeSectionWrapper}>
+                <View style={styles.timeSectionHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="time-outline" size={18} color={theme.text} />
+                    <Text variant="body" style={{ fontWeight: '600', color: theme.text }}>
+                      {language === 'es' ? 'Hora específica' : 'Specific time'}
+                    </Text>
+                  </View>
+                  {tempTime ? (
+                    <TouchableOpacity
+                      onPress={() => setTempTime(null)}
+                      style={[styles.clearTimeBadge, { backgroundColor: theme.inputBackground }]}
+                    >
+                      <Text variant="caption" style={{ color: theme.text, fontWeight: '700' }}>
+                        {tempTime}
+                      </Text>
+                      <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
+                    </TouchableOpacity>
+                  ) : (
+                    <Text variant="caption" style={{ color: theme.textSecondary }}>
+                      {language === 'es' ? 'Sin hora (todo el día)' : 'No time (all day)'}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Chips de horas frecuentes */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.timeChipsContent}
+                >
+                  {['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '16:00', '18:00', '20:00'].map((timeStr) => {
+                    const isSelected = tempTime === timeStr;
+                    return (
+                      <TouchableOpacity
+                        key={timeStr}
+                        onPress={() => setTempTime(isSelected ? null : timeStr)}
+                        style={[
+                          styles.timeChip,
+                          {
+                            backgroundColor: isSelected ? theme.text : theme.inputBackground,
+                          },
+                        ]}
+                      >
+                        <Text
+                          variant="micro"
+                          style={{
+                            color: isSelected ? theme.cardBackground : theme.text,
+                            fontWeight: isSelected ? '700' : '500',
+                          }}
+                        >
+                          {timeStr}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
               {/* Botón de Confirmación */}
@@ -482,8 +546,37 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 15,
   },
+  timeSectionWrapper: {
+    marginTop: 4,
+    marginBottom: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  timeSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  clearTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  timeChipsContent: {
+    gap: 6,
+  },
+  timeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
   footer: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
   confirmButton: {
     height: 48,

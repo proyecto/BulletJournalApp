@@ -79,7 +79,18 @@ export default function DailyLogScreen({ navigation }) {
 
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
 
-  const { entries, addEntry, toggleStatus, toggleSignifier, deleteEntry, updateEntryDate, reorderEntries } = useJournal();
+  // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
+
+  const {
+    entries,
+    addEntry,
+    toggleStatus,
+    toggleSignifier,
+    deleteEntry,
+    updateEntryDate,
+    updateEntryDateTime,
+    reorderEntries,
+  } = useJournal();
   const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
 
@@ -105,6 +116,9 @@ export default function DailyLogScreen({ navigation }) {
 
   /** Fecha seleccionada para la nueva entrada (puede diferir del día visualizado) */
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  /** Hora seleccionada para la nueva entrada ('HH:mm' | null) */
+  const [selectedTime, setSelectedTime] = useState(null);
 
   /** Controla la visibilidad del DatePicker para crear nueva entrada */
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -150,6 +164,7 @@ export default function DailyLogScreen({ navigation }) {
 
   useEffect(() => {
     setSelectedDate(currentLogDate);
+    setSelectedTime(null);
   }, [currentLogDate]);
 
   useEffect(() => {
@@ -163,6 +178,7 @@ export default function DailyLogScreen({ navigation }) {
           item.status    === currentLogEntries[idx]?.status    &&
           item.signifier === currentLogEntries[idx]?.signifier &&
           item.text      === currentLogEntries[idx]?.text      &&
+          item.time      === currentLogEntries[idx]?.time      &&
           item.date      === currentLogEntries[idx]?.date
       );
 
@@ -231,12 +247,14 @@ export default function DailyLogScreen({ navigation }) {
       selectedDate,
       timezone,
       orderedEntries.length,
-      selectedSignifier
+      selectedSignifier,
+      selectedTime
     );
     addEntry(newEntry);
 
     setInputText('');
     setSelectedSignifier(null);
+    setSelectedTime(null);
     setSelectedDate(currentLogDate);
   };
 
@@ -244,10 +262,10 @@ export default function DailyLogScreen({ navigation }) {
     setReschedulingItem(item);
   };
 
-  const handleMoveEntryDate = (newDate) => {
+  const handleMoveEntryDate = (newDate, newTime) => {
     if (!reschedulingItem) return;
     const newDateStr = getFormattedDate(newDate, timezone);
-    updateEntryDate(reschedulingItem.id, newDateStr);
+    updateEntryDateTime(reschedulingItem.id, newDateStr, newTime);
     setReschedulingItem(null);
   };
 
@@ -421,7 +439,7 @@ export default function DailyLogScreen({ navigation }) {
                         />
                       </TouchableOpacity>
 
-                      {/* Texto de la entrada: pulsar para tachar/completar, pulsación larga para mover fecha */}
+                      {/* Texto de la entrada + hora opcional */}
                       <TouchableOpacity
                         style={styles.cardContent}
                         onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
@@ -430,6 +448,14 @@ export default function DailyLogScreen({ navigation }) {
                         activeOpacity={0.7}
                         disabled={draggingIndex !== null}
                       >
+                        {item.time ? (
+                          <View style={[styles.timeBadge, { backgroundColor: theme.inputBackground }]}>
+                            <Text style={[styles.timeBadgeText, { color: isCompleted ? theme.textCompleted : theme.text }]}>
+                              {item.time}
+                            </Text>
+                          </View>
+                        ) : null}
+
                         <Text
                           variant="body"
                           style={[
@@ -558,18 +584,18 @@ export default function DailyLogScreen({ navigation }) {
           </>
         }
         leftContent={
-          /* Botón de calendario para seleccionar fecha de la nueva entrada */
+          /* Botón de calendario para seleccionar fecha u hora de la nueva entrada */
           <TouchableOpacity
             style={styles.calendarButton}
             onPress={() => setShowDatePicker(true)}
-            accessibilityLabel={language === 'es' ? 'Seleccionar fecha' : 'Select date'}
+            accessibilityLabel={language === 'es' ? 'Seleccionar fecha u hora' : 'Select date or time'}
           >
             <Ionicons
               name="calendar"
               size={22}
               color={
-                getFormattedDate(selectedDate, timezone) !== currentLogDateStr
-                  ? theme.primary       // Destacado si la fecha difiere del día actual
+                getFormattedDate(selectedDate, timezone) !== currentLogDateStr || selectedTime
+                  ? theme.primary       // Destacado si la fecha/hora difiere
                   : theme.textSecondary
               }
             />
@@ -577,18 +603,23 @@ export default function DailyLogScreen({ navigation }) {
         }
       />
 
-      {/* ── Modal: selector de fecha para nueva entrada ──────────────────── */}
+      {/* ── Modal: selector de fecha y hora para nueva entrada ─────────────── */}
       <CustomDatePickerModal
         visible={showDatePicker}
         selectedDate={selectedDate}
-        onSelectDate={(date) => setSelectedDate(date)}
+        selectedTime={selectedTime}
+        onSelectDate={(date, time) => {
+          setSelectedDate(date);
+          setSelectedTime(time || null);
+        }}
         onClose={() => setShowDatePicker(false)}
       />
 
-      {/* ── Modal: selector de fecha para MOVER entrada existente ────────── */}
+      {/* ── Modal: selector de fecha y hora para MOVER entrada existente ──── */}
       <CustomDatePickerModal
         visible={!!reschedulingItem}
         selectedDate={reschedulingItem?.date || currentLogDateStr}
+        selectedTime={reschedulingItem?.time || null}
         onSelectDate={handleMoveEntryDate}
         onClose={() => setReschedulingItem(null)}
       />
@@ -732,11 +763,24 @@ const styles = StyleSheet.create({
     marginRight: 3,
   },
   taskIcon: { transform: [{ scale: 0.8 }] },
+  timeBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
   cardContent: {
     flex:           1,
     flexDirection:  'row',
     alignItems:     'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   cardText: { flex: 1 },
 

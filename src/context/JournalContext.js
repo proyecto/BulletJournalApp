@@ -211,6 +211,41 @@ export const JournalProvider = ({ children }) => {
   };
 
   /**
+   * Actualiza la hora específica ('HH:mm' | null) de una entrada.
+   *
+   * @param {string} id - El ID de la entrada a modificar.
+   * @param {string|null} newTime - La nueva hora ('HH:mm' o null).
+   */
+  const updateEntryTime = async (id, newTime) => {
+    try {
+      await EntryRepository.updateEntryTime(id, newTime);
+      setEntries(prev =>
+        prev.map(entry => entry.id === id ? { ...entry, time: newTime } : entry)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al actualizar hora de entrada:', e);
+    }
+  };
+
+  /**
+   * Actualiza la fecha y la hora de una entrada simultáneamente.
+   *
+   * @param {string} id - El ID de la entrada a modificar.
+   * @param {string} newDate - La nueva fecha ('YYYY-MM-DD').
+   * @param {string|null} newTime - La nueva hora ('HH:mm' o null).
+   */
+  const updateEntryDateTime = async (id, newDate, newTime) => {
+    try {
+      await EntryRepository.updateEntryDateTime(id, newDate, newTime);
+      setEntries(prev =>
+        prev.map(entry => entry.id === id ? { ...entry, date: newDate, time: newTime } : entry)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al actualizar fecha y hora de entrada:', e);
+    }
+  };
+
+  /**
    * Persiste el nuevo orden de un subconjunto de entradas (ej: las del día actual o de una lista).
    * @param {Array<Object>} reorderedSubset - El array de entradas en su nuevo orden.
    */
@@ -310,6 +345,8 @@ export const JournalProvider = ({ children }) => {
       setSignifier,    // Exponemos el asignador directo de significadores
       deleteEntry, // Exponemos el método a las pantallas
       updateEntryDate, // Exponemos el método de migración
+      updateEntryTime, // Exponemos el método de actualización de hora
+      updateEntryDateTime, // Exponemos actualización conjunta fecha/hora
       reorderEntries, // Exponemos la reordenación de entradas
       lists,
       addList,

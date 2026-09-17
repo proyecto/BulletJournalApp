@@ -63,7 +63,8 @@ export const initDB = () => {
       completedAt TEXT,
       listId TEXT,
       order_index INTEGER DEFAULT 0,
-      signifier TEXT
+      signifier TEXT,
+      time TEXT
     );
 
     -- Tabla de configuración clave-valor para persistir las preferencias del usuario
@@ -83,6 +84,13 @@ export const initDB = () => {
   // Migración segura para bases de datos existentes que no tenían la columna signifier en entries
   try {
     db.execSync('ALTER TABLE entries ADD COLUMN signifier TEXT DEFAULT NULL;');
+  } catch (e) {
+    // La columna ya existe, se ignora de forma segura
+  }
+
+  // Migración segura para bases de datos existentes que no tenían la columna time en entries
+  try {
+    db.execSync('ALTER TABLE entries ADD COLUMN time TEXT DEFAULT NULL;');
   } catch (e) {
     // La columna ya existe, se ignora de forma segura
   }

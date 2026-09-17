@@ -58,6 +58,34 @@ export const parseSignifierFromText = (rawText) => {
 };
 
 /**
+ * Extrae automáticamente una hora en formato HH:mm al inicio del texto si existe.
+ * Ejemplos:
+ *   "10:30 Reunión de equipo" -> { time: '10:30', text: 'Reunión de equipo' }
+ *   "9:15 Llamar al médico"   -> { time: '09:15', text: 'Llamar al médico' }
+ *
+ * @param {string} rawText - Texto escrito por el usuario.
+ * @returns {{ time: string|null, text: string }} Hora detectada y texto limpio.
+ */
+export const parseTimeFromText = (rawText) => {
+  if (!rawText) return { time: null, text: '' };
+  const trimmed = rawText.trim();
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?:\s+|$)/;
+  const match = trimmed.match(timeRegex);
+
+  if (match) {
+    const hours = match[1].padStart(2, '0');
+    const minutes = match[2];
+    const cleanText = trimmed.substring(match[0].length).trim();
+    return {
+      time: `${hours}:${minutes}`,
+      text: cleanText || trimmed,
+    };
+  }
+
+  return { time: null, text: trimmed };
+};
+
+/**
  * Crea un objeto entrada válido para el Daily Log.
  * Garantiza que todos los campos obligatorios (`date`, `status`, `type`) están presentes.
  *
@@ -67,16 +95,34 @@ export const parseSignifierFromText = (rawText) => {
  * @param {string} timezone - El timezone del usuario (de SettingsContext).
  * @param {number} [orderIndex=0] - Índice de ordenamiento.
  * @param {string|null} [signifier=null] - Significador purista ('priority' | 'inspiration' | null).
+ * @param {string|null} [time=null] - Hora en formato 'HH:mm' o null.
  * @returns {Object} Un objeto entry listo para ser persistido por EntryRepository.
  */
-export const createDailyEntry = (text, type, date, timezone, orderIndex = 0, signifier = null) => {
+export const createDailyEntry = (
+  text,
+  type,
+  date,
+  timezone,
+  orderIndex = 0,
+  signifier = null,
+  time = null
+) => {
   let finalSignifier = signifier;
+  let finalTime = time;
   let finalText = text || '';
 
-  if (!finalSignifier && typeof text === 'string') {
-    const parsed = parseSignifierFromText(text);
-    finalSignifier = parsed.signifier;
-    finalText = parsed.text;
+  if (!finalSignifier && typeof finalText === 'string') {
+    const parsedSig = parseSignifierFromText(finalText);
+    finalSignifier = parsedSig.signifier;
+    finalText = parsedSig.text;
+  }
+
+  if (!finalTime && typeof finalText === 'string') {
+    const parsedTime = parseTimeFromText(finalText);
+    if (parsedTime.time) {
+      finalTime = parsedTime.time;
+      finalText = parsedTime.text;
+    }
   }
 
   return {
@@ -89,6 +135,7 @@ export const createDailyEntry = (text, type, date, timezone, orderIndex = 0, sig
     listId: null, // Las entradas del Daily Log no pertenecen a ninguna lista
     order_index: orderIndex,
     signifier: finalSignifier || null,
+    time: finalTime || null,
   };
 };
 
