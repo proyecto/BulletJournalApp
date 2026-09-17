@@ -8,14 +8,65 @@ import { useJournal } from '../context/JournalContext';
 import { resetDatabase } from '../database/db';
 import { fontOptions } from '../constants/fonts';
 
+import { exportToMarkdown, exportToJSON, importFromJSON } from '../services/ExportImportService';
+
 export default function SettingsScreen({ navigation }) {
   const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone, fontFamily, setFontFamily, resetSettings } = useSettings();
-  const { resetJournal } = useJournal();
+  const { entries, lists, resetJournal, reloadJournalData } = useJournal();
   const insets = useSafeAreaInsets();
   
   const [isFontModalVisible, setFontModalVisible] = useState(false);
 
   const currentFontLabel = fontOptions.find(f => f.id === fontFamily)?.label || fontOptions[0].label;
+
+  const handleExportMarkdown = async () => {
+    try {
+      await exportToMarkdown(entries, lists, language);
+    } catch (err) {
+      console.error('Error al exportar Markdown:', err);
+      Alert.alert(
+        language === 'es' ? 'Error al exportar' : 'Export error',
+        err.message || (language === 'es' ? 'No se pudo generar el archivo Markdown.' : 'Could not generate Markdown file.')
+      );
+    }
+  };
+
+  const handleExportJSON = async () => {
+    try {
+      await exportToJSON(entries, lists, { fontFamily, language, themePreference, timezone }, language);
+    } catch (err) {
+      console.error('Error al exportar JSON:', err);
+      Alert.alert(
+        language === 'es' ? 'Error al exportar' : 'Export error',
+        err.message || (language === 'es' ? 'No se pudo generar la copia de seguridad.' : 'Could not generate backup file.')
+      );
+    }
+  };
+
+  const handleImportJSON = async () => {
+    try {
+      const res = await importFromJSON(reloadJournalData, language);
+      if (res.success) {
+        Alert.alert(
+          language === 'es' ? 'Importación completada' : 'Import successful',
+          language === 'es'
+            ? `Se han incorporado ${res.count} registros nuevos a tu Bullet Journal.`
+            : `Successfully added ${res.count} new items to your Bullet Journal.`
+        );
+      } else if (res.error) {
+        Alert.alert(
+          language === 'es' ? 'Error al importar' : 'Import Error',
+          res.error
+        );
+      }
+    } catch (err) {
+      console.error('Error al importar JSON:', err);
+      Alert.alert(
+        language === 'es' ? 'Error al importar' : 'Import Error',
+        err.message || (language === 'es' ? 'Ocurrió un error al procesar la copia de seguridad.' : 'An error occurred processing the backup.')
+      );
+    }
+  };
 
   const handleFactoryReset = () => {
     Alert.alert(
@@ -114,6 +165,49 @@ export default function SettingsScreen({ navigation }) {
               <Ionicons name="color-wand-outline" size={20} color={theme.primary} style={styles.optionIcon} />
               <Text variant="body" style={[styles.optionLabel, { color: theme.text }]}>
                 {language === 'es' ? 'Tipografía Avanzada' : 'Advanced Typography'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {renderSectionHeader(language === 'es' ? 'EXPORTAR E IMPORTAR' : 'EXPORT & IMPORT')}
+        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+          <TouchableOpacity 
+            style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomColor: theme.border }]} 
+            onPress={handleExportMarkdown}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <Ionicons name="document-text-outline" size={20} color={theme.primary} style={styles.optionIcon} />
+              <Text variant="body" style={[styles.optionLabel, { color: theme.text }]}>
+                {language === 'es' ? 'Exportar a Markdown (.md)' : 'Export to Markdown (.md)'}
+              </Text>
+            </View>
+            <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomColor: theme.border }]} 
+            onPress={handleExportJSON}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <Ionicons name="cloud-upload-outline" size={20} color={theme.primary} style={styles.optionIcon} />
+              <Text variant="body" style={[styles.optionLabel, { color: theme.text }]}>
+                {language === 'es' ? 'Exportar Copia de Seguridad (JSON)' : 'Export Backup (JSON)'}
+              </Text>
+            </View>
+            <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomWidth: 0 }]} 
+            onPress={handleImportJSON}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <Ionicons name="cloud-download-outline" size={20} color={theme.primary} style={styles.optionIcon} />
+              <Text variant="body" style={[styles.optionLabel, { color: theme.text }]}>
+                {language === 'es' ? 'Importar Copia de Seguridad (JSON)' : 'Import Backup (JSON)'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />

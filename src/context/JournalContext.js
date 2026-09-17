@@ -279,6 +279,19 @@ export const JournalProvider = ({ children }) => {
     }
   };
 
+  const reloadJournalData = async () => {
+    try {
+      const [loadedLists, loadedEntries] = await Promise.all([
+        ListRepository.getAllLists(),
+        EntryRepository.getAllEntries(),
+      ]);
+      setLists(loadedLists);
+      setEntries(loadedEntries);
+    } catch (e) {
+      console.error('[JournalContext] Error recargando datos:', e);
+    }
+  };
+
   const resetJournal = () => {
     setEntries([]);
     setLists([]);
@@ -303,6 +316,7 @@ export const JournalProvider = ({ children }) => {
       reorderLists,
       deleteList,
       resetJournal,
+      reloadJournalData, // Exponemos la recarga tras importación de copia de seguridad
     }}>
       {children}
     </JournalContext.Provider>
