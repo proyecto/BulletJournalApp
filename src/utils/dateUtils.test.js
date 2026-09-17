@@ -89,5 +89,20 @@ describe('dateUtils', () => {
       const date = new Date(2026, 8, 16);
       expect(getFormattedMonthSubtitle(date, 'en')).toContain('September 2026');
     });
+
+    it('returns consistent results from memoized cache across repeated calls', () => {
+      const date = new Date(2026, 8, 16);
+      const call1 = getFormattedDate(date, 'Europe/Madrid');
+      const call2 = getFormattedDate(date, 'Europe/Madrid');
+      expect(call1).toBe(call2);
+
+      const week1 = getFormattedWeekSubtitle(date, 'es');
+      const week2 = getFormattedWeekSubtitle(date, 'es');
+      expect(week1).toBe(week2);
+
+      const month1 = getFormattedMonthSubtitle(date, 'es');
+      const month2 = getFormattedMonthSubtitle(date, 'es');
+      expect(month1).toBe(month2);
+    });
   });
 });

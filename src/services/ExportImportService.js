@@ -239,33 +239,27 @@ export const importFromJSON = async (reloadJournalData, language = 'es') => {
     const importedEntries = Array.isArray(parsedData.entries) ? parsedData.entries : [];
     const importedLists = Array.isArray(parsedData.lists) ? parsedData.lists : [];
 
-    // Persistir listas importadas en SQLite (omitiendo duplicados por id)
+    // Persistir listas importadas en SQLite (omitiendo duplicados por id) en una única transacción
     const existingLists = await ListRepository.getAllLists();
     const existingListIds = new Set(existingLists.map(l => l.id));
-
-    for (const list of importedLists) {
-      if (!existingListIds.has(list.id)) {
-        await ListRepository.insertList(list);
-      }
+    const newLists = importedLists.filter(list => !existingListIds.has(list.id));
+    if (newLists.length > 0) {
+      await ListRepository.batchInsertLists(newLists);
     }
 
-    // Persistir entradas importadas en SQLite (omitiendo duplicados por id)
+    // Persistir entradas importadas en SQLite (omitiendo duplicados por id) en una única transacción
     const existingEntries = await EntryRepository.getAllEntries();
     const existingEntryIds = new Set(existingEntries.map(e => e.id));
-
-    let insertedCount = 0;
-    for (const entry of importedEntries) {
-      if (!existingEntryIds.has(entry.id)) {
-        await EntryRepository.insertEntry(entry);
-        insertedCount++;
-      }
+    const newEntries = importedEntries.filter(entry => !existingEntryIds.has(entry.id));
+    if (newEntries.length > 0) {
+      await EntryRepository.batchInsertEntries(newEntries);
     }
 
     if (reloadJournalData) {
       await reloadJournalData();
     }
 
-    return { success: true, count: insertedCount };
+    return { success: true, count: newEntries.length };
   } catch (error) {
     console.error('[ExportImportService] Error al importar JSON:', error);
     return {

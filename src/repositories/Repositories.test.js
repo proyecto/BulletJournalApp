@@ -145,6 +145,27 @@ describe('Repositories Integration with SQLite Store', () => {
       expect(all).toHaveLength(1);
       expect(all[0].id).toBe('entry-list-2');
     });
+
+    it('handles batchUpdateEntryOrders and batchInsertEntries atomically', async () => {
+      const entriesToBatch = [
+        { id: 'b-1', text: 'Task 1', type: 'task', status: 'open', date: '2026-09-17' },
+        { id: 'b-2', text: 'Task 2', type: 'task', status: 'open', date: '2026-09-17' },
+      ];
+      await EntryRepository.batchInsertEntries(entriesToBatch);
+
+      let all = await EntryRepository.getAllEntries();
+      expect(all.find(e => e.id === 'b-1')).toBeTruthy();
+      expect(all.find(e => e.id === 'b-2')).toBeTruthy();
+
+      await EntryRepository.batchUpdateEntryOrders([
+        { id: 'b-1', order_index: 10 },
+        { id: 'b-2', order_index: 20 },
+      ]);
+
+      all = await EntryRepository.getAllEntries();
+      expect(all.find(e => e.id === 'b-1').order_index).toBe(10);
+      expect(all.find(e => e.id === 'b-2').order_index).toBe(20);
+    });
   });
 
   describe('ListRepository', () => {
@@ -167,6 +188,27 @@ describe('Repositories Integration with SQLite Store', () => {
       await ListRepository.deleteList('list-abc');
       lists = await ListRepository.getAllLists();
       expect(lists).toHaveLength(0);
+    });
+
+    it('handles batchInsertLists and batchUpdateListOrders atomically', async () => {
+      const batchLists = [
+        { id: 'bl-1', title: 'List 1', order_index: 0 },
+        { id: 'bl-2', title: 'List 2', order_index: 1 },
+      ];
+      await ListRepository.batchInsertLists(batchLists);
+
+      let lists = await ListRepository.getAllLists();
+      expect(lists.find(l => l.id === 'bl-1')).toBeTruthy();
+      expect(lists.find(l => l.id === 'bl-2')).toBeTruthy();
+
+      await ListRepository.batchUpdateListOrders([
+        { id: 'bl-1', order_index: 5 },
+        { id: 'bl-2', order_index: 6 },
+      ]);
+
+      lists = await ListRepository.getAllLists();
+      expect(lists.find(l => l.id === 'bl-1').order_index).toBe(5);
+      expect(lists.find(l => l.id === 'bl-2').order_index).toBe(6);
     });
   });
 

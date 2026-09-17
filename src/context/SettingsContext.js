@@ -13,7 +13,7 @@
  * evitando cálculos innecesarios en cada render.
  */
 
-import React, { createContext, useState, useContext, useMemo, useEffect } from 'react';
+import React, { createContext, useState, useContext, useMemo, useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import * as SettingsRepository from '../repositories/SettingsRepository';
 
@@ -153,89 +153,82 @@ export function SettingsProvider({ children }) {
    */
 
   /** Actualiza la preferencia de tema y la persiste. */
-  const setThemePreference = (val) => {
+  const setThemePreference = useCallback((val) => {
     setThemePreferenceState(val);
     SettingsRepository.saveSetting('themePreference', val);
-  };
+  }, []);
 
   /** Actualiza el idioma de la interfaz y lo persiste. */
-  const setLanguage = (val) => {
+  const setLanguage = useCallback((val) => {
     setLanguageState(val);
     SettingsRepository.saveSetting('language', val);
-  };
+  }, []);
 
   /** Actualiza el timezone y lo persiste. */
-  const setTimezone = (val) => {
+  const setTimezone = useCallback((val) => {
     setTimezoneState(val);
     SettingsRepository.saveSetting('timezone', val);
-  };
+  }, []);
 
   /** Actualiza el primer día de la semana ('monday' | 'sunday') y lo persiste. */
-  const setFirstDayOfWeek = (val) => {
+  const setFirstDayOfWeek = useCallback((val) => {
     setFirstDayOfWeekState(val);
     SettingsRepository.saveSetting('firstDayOfWeek', val);
-  };
+  }, []);
 
   /** Configura un nuevo PIN de 4 dígitos y activa el bloqueo. */
-  const setupPin = (code) => {
+  const setupPin = useCallback((code) => {
     setPinCodeState(code);
     setPinLockEnabledState(true);
     setIsUnlockedState(true);
     SettingsRepository.saveSetting('pinCode', code);
     SettingsRepository.saveSetting('pinLockEnabled', 'true');
-  };
+  }, []);
 
   /** Elimina el PIN y desactiva el bloqueo. */
-  const removePin = () => {
+  const removePin = useCallback(() => {
     setPinCodeState(null);
     setPinLockEnabledState(false);
     setIsUnlockedState(true);
     SettingsRepository.saveSetting('pinCode', '');
     SettingsRepository.saveSetting('pinLockEnabled', 'false');
-  };
+  }, []);
 
   /** Comprueba el PIN introducido y desbloquea si es correcto. */
-  const verifyPin = (enteredCode) => {
+  const verifyPin = useCallback((enteredCode) => {
     if (enteredCode === pinCode) {
       setIsUnlockedState(true);
       return true;
     }
     return false;
-  };
+  }, [pinCode]);
 
   /** Bloquea manualmente la sesión de la aplicación. */
-  const lockApp = () => {
+  const lockApp = useCallback(() => {
     if (pinLockEnabled && pinCode) {
       setIsUnlockedState(false);
     }
-  };
+  }, [pinLockEnabled, pinCode]);
 
   /** Actualiza la familia tipográfica global y la persiste. */
-  const setFontFamily = (val) => {
+  const setFontFamily = useCallback((val) => {
     setFontFamilyState(val);
     SettingsRepository.saveSetting('fontFamily', val);
-  };
+  }, []);
 
   /**
    * Actualiza la configuración tipográfica detallada y la persiste como JSON.
-   * Acepta tanto un valor directo como una función actualizadora (como `setState`).
-   * @param {Object|Function} val - El nuevo config o una función (prev) => newConfig.
    */
-  const setTypographyConfig = (val) => {
+  const setTypographyConfig = useCallback((val) => {
     setTypographyConfigState(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
       SettingsRepository.saveSetting('typographyConfig', next);
       return next;
     });
-  };
+  }, []);
 
   // ── Tema Activo (Memoization) ─────────────────────────────────────────────────
 
-  /**
-   * Calcula el tema activo basándose en la preferencia del usuario y el scheme del sistema.
-   * `useMemo` garantiza que este cálculo solo se repite cuando alguna de sus
-   * dependencias cambia, no en cada render.
-   */
   const activeTheme = useMemo(() => {
     if (themePreference === 'system') {
       return systemColorScheme === 'dark' ? darkTheme : lightTheme;
@@ -243,7 +236,7 @@ export function SettingsProvider({ children }) {
     return themePreference === 'dark' ? darkTheme : lightTheme;
   }, [themePreference, systemColorScheme]);
 
-  const resetSettings = () => {
+  const resetSettings = useCallback(() => {
     setThemePreferenceState('system');
     setLanguageState('es');
     setTimezoneState('Europe/Madrid');
@@ -260,36 +253,60 @@ export function SettingsProvider({ children }) {
       caption: { fontFamily: null, fontSize: 13, fontWeight: '600', color: null },
       micro:   { fontFamily: null, fontSize: 12, fontWeight: '400', color: null },
     });
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    themePreference,
+    setThemePreference,
+    language,
+    setLanguage,
+    timezone,
+    setTimezone,
+    firstDayOfWeek,
+    setFirstDayOfWeek,
+    pinLockEnabled,
+    pinCode,
+    isUnlocked,
+    setupPin,
+    removePin,
+    verifyPin,
+    lockApp,
+    fontFamily,
+    setFontFamily,
+    typographyConfig,
+    setTypographyConfig,
+    resetSettings,
+    theme: activeTheme,
+    isDark: activeTheme === darkTheme,
+  }), [
+    themePreference,
+    setThemePreference,
+    language,
+    setLanguage,
+    timezone,
+    setTimezone,
+    firstDayOfWeek,
+    setFirstDayOfWeek,
+    pinLockEnabled,
+    pinCode,
+    isUnlocked,
+    setupPin,
+    removePin,
+    verifyPin,
+    lockApp,
+    fontFamily,
+    setFontFamily,
+    typographyConfig,
+    setTypographyConfig,
+    resetSettings,
+    activeTheme,
+  ]);
 
   // Esperamos a tener los datos cargados antes de renderizar
   if (!isLoaded) return null;
 
   return (
-    <SettingsContext.Provider value={{
-      themePreference,
-      setThemePreference,
-      language,
-      setLanguage,
-      timezone,
-      setTimezone,
-      firstDayOfWeek,
-      setFirstDayOfWeek,
-      pinLockEnabled,
-      pinCode,
-      isUnlocked,
-      setupPin,
-      removePin,
-      verifyPin,
-      lockApp,
-      fontFamily,
-      setFontFamily,
-      typographyConfig,
-      setTypographyConfig,
-      resetSettings,
-      theme: activeTheme,
-      isDark: activeTheme === darkTheme,
-    }}>
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );

@@ -21,7 +21,7 @@ export const searchEntries = (allEntries, allLists = [], query = '') => {
   const cleanQuery = query.trim().toLowerCase();
   if (!cleanQuery) return [];
 
-  const listsMap = new Map((allLists || []).map(l => [l.id, l.name]));
+  const listsMap = new Map((allLists || []).map(l => [l.id, l.title || l.name]));
 
   return allEntries
     .filter(entry => entry && entry.text && entry.text.toLowerCase().includes(cleanQuery))

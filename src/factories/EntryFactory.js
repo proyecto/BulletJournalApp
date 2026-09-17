@@ -22,12 +22,6 @@
 // JournalContext → EntryFactory → dateUtils      ✓
 import { getFormattedDate } from '../utils/dateUtils';
 
-/**
- * Genera un ID único basado en el timestamp actual.
- * Centralizar la generación de IDs permite cambiar la estrategia en un solo lugar
- * (ej: migrar a UUID en el futuro sin buscar `Date.now()` por toda la app).
- * @returns {string} Un string con el timestamp en ms.
- */
 const generateId = () => Date.now().toString();
 
 /**

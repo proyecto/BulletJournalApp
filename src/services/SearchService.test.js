@@ -31,6 +31,13 @@ describe('SearchService', () => {
     expect(results[0].listName).toBe('Ideas');
   });
 
+  it('enriches custom list items with listName when list uses title property', () => {
+    const listsWithTitle = [{ id: 'list-1', title: 'Ideas BuJo' }];
+    const results = searchEntries(mockEntries, listsWithTitle, 'proyecto');
+    expect(results).toHaveLength(1);
+    expect(results[0].listName).toBe('Ideas BuJo');
+  });
+
   it('prioritizes matches that start with query term', () => {
     const results = searchEntries(mockEntries, mockLists, 'reunión');
     expect(results[0].id).toBe('3');

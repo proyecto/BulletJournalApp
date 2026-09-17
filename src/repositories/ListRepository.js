@@ -6,7 +6,7 @@
  * Ver EntryRepository.js para una descripción completa del patrón Repository.
  */
 
-import db from '../database/db';
+import db, { runInTransaction } from '../database/db';
 
 /**
  * Obtiene todas las listas ordenadas por su índice de orden personalizado.
@@ -35,7 +35,6 @@ export const insertList = async (list) => {
 
 /**
  * Actualiza el `order_index` de una lista.
- * Se llama en bucle tras un drag & drop para persistir el nuevo orden.
  * @param {string} id - ID de la lista a actualizar.
  * @param {number} newIndex - El nuevo índice de orden.
  * @returns {Promise<void>}
@@ -48,9 +47,40 @@ export const updateListOrder = async (id, newIndex) => {
 };
 
 /**
+ * Actualiza el orden de múltiples listas dentro de una única transacción atómica.
+ * @param {Array<{id: string, order_index?: number}>} orderedLists - Array de listas con nuevo orden.
+ * @returns {Promise<void>}
+ */
+export const batchUpdateListOrders = async (orderedLists) => {
+  if (!orderedLists || orderedLists.length === 0) return;
+  await runInTransaction(async () => {
+    for (let i = 0; i < orderedLists.length; i++) {
+      const item = orderedLists[i];
+      const newIndex = item.order_index !== undefined ? item.order_index : i;
+      await db.runAsync('UPDATE lists SET order_index = ? WHERE id = ?', [newIndex, item.id]);
+    }
+  });
+};
+
+/**
+ * Inserta múltiples listas dentro de una única transacción atómica.
+ * @param {Array<Object>} lists - Array de listas a insertar.
+ * @returns {Promise<void>}
+ */
+export const batchInsertLists = async (lists) => {
+  if (!lists || lists.length === 0) return;
+  await runInTransaction(async () => {
+    for (const list of lists) {
+      await db.runAsync(
+        'INSERT INTO lists (id, title, order_index) VALUES (?, ?, ?)',
+        [list.id, list.title, list.order_index]
+      );
+    }
+  });
+};
+
+/**
  * Elimina una lista de la base de datos por su ID.
- * IMPORTANTE: Llamar a `EntryRepository.deleteEntriesByListId` ANTES de esto
- * para mantener la integridad referencial.
  * @param {string} id - ID de la lista a eliminar.
  * @returns {Promise<void>}
  */

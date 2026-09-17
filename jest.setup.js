@@ -108,6 +108,12 @@ const createMockDb = () => {
       }
       return null;
     }),
+    withTransactionAsync: jest.fn(async (callback) => {
+      return await callback();
+    }),
+    withTransactionSync: jest.fn((callback) => {
+      return callback();
+    }),
   };
 };
 

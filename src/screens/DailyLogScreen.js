@@ -28,7 +28,7 @@
  * - Permite mover una entrada a otro día mediante pulsación larga.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -142,8 +142,11 @@ export default function DailyLogScreen({ navigation }) {
   /**
    * Delegamos el filtrado al servicio `DailyLogService`.
    * El servicio aplica las reglas de negocio del Bullet Journal para Daily, Week y Month log.
+   * `useMemo` evita recalcular el filtrado y ordenamiento de todas las tareas al teclear en el input.
    */
-  const currentLogEntries = filterEntriesForLogMode(entries, currentLogDateStr, todayStr, logMode);
+  const currentLogEntries = useMemo(() => {
+    return filterEntriesForLogMode(entries, currentLogDateStr, todayStr, logMode);
+  }, [entries, currentLogDateStr, todayStr, logMode]);
 
   // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -136,7 +136,7 @@ export default function CalendarScreen({ navigation }) {
     return filterEntriesForDay(entries, selectedDate, today);
   }, [entries, selectedDate, today]);
 
-  const renderItem = ({ item }) => {
+  const renderItem = useCallback(({ item }) => {
     const isCompleted = isEntryCompleted(item, today);
     const iconName = getEntryIcon(item, today);
 
@@ -178,7 +178,7 @@ export default function CalendarScreen({ navigation }) {
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [today, theme, toggleSignifier, toggleStatus, selectedDate]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>

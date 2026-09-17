@@ -15,7 +15,7 @@
  * Este repositorio gestiona exclusivamente la tabla `entries`.
  */
 
-import db from '../database/db';
+import db, { runInTransaction } from '../database/db';
 
 /**
  * Obtiene todas las entradas de la base de datos ordenadas por order_index.
@@ -157,4 +157,50 @@ export const updateEntryDate = async (id, newDate) => {
     'UPDATE entries SET date = ? WHERE id = ?',
     [newDate, id]
   );
+};
+
+/**
+ * Actualiza el orden de múltiples entradas dentro de una única transacción atómica.
+ * Reemplaza bucles secuenciales lentos por una operación atómica en SQLite.
+ * @param {Array<{id: string, order_index?: number}>} entriesWithNewOrder - Array de entradas ordenadas.
+ * @returns {Promise<void>}
+ */
+export const batchUpdateEntryOrders = async (entriesWithNewOrder) => {
+  if (!entriesWithNewOrder || entriesWithNewOrder.length === 0) return;
+  await runInTransaction(async () => {
+    for (let i = 0; i < entriesWithNewOrder.length; i++) {
+      const item = entriesWithNewOrder[i];
+      const newIndex = item.order_index !== undefined ? item.order_index : i;
+      await db.runAsync('UPDATE entries SET order_index = ? WHERE id = ?', [newIndex, item.id]);
+    }
+  });
+};
+
+/**
+ * Inserta múltiples entradas dentro de una única transacción atómica.
+ * Esencial para importaciones rápidas de copias de seguridad.
+ * @param {Array<Object>} entries - Array de objetos entrada.
+ * @returns {Promise<void>}
+ */
+export const batchInsertEntries = async (entries) => {
+  if (!entries || entries.length === 0) return;
+  await runInTransaction(async () => {
+    for (const entry of entries) {
+      await db.runAsync(
+        'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index, signifier, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          entry.id,
+          entry.text,
+          entry.type,
+          entry.status,
+          entry.date,
+          entry.completedAt ?? null,
+          entry.listId ?? null,
+          entry.order_index ?? 0,
+          entry.signifier ?? null,
+          entry.time ?? null,
+        ]
+      );
+    }
+  });
 };
