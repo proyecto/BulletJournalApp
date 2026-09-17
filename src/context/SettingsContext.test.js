@@ -1,6 +1,16 @@
 import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react-native';
-import { SettingsProvider, useSettings, lightTheme, darkTheme } from './SettingsContext';
+import {
+  SettingsProvider,
+  useSettings,
+  lightTheme,
+  darkTheme,
+  sepiaTheme,
+  obsidianTheme,
+  thingsTheme,
+  nordTheme,
+  matchaTheme,
+} from './SettingsContext';
 import * as SettingsRepository from '../repositories/SettingsRepository';
 
 describe('SettingsContext', () => {
@@ -29,6 +39,7 @@ describe('SettingsContext', () => {
     expect(result.current.timezone).toBe('Europe/Madrid');
     expect(result.current.fontFamily).toBe('system');
     expect(result.current.theme).toEqual(lightTheme);
+    expect(result.current.isDark).toBe(false);
   });
 
   it('updates themePreference and switches theme', async () => {
@@ -43,9 +54,57 @@ describe('SettingsContext', () => {
 
     expect(result.current.themePreference).toBe('dark');
     expect(result.current.theme).toEqual(darkTheme);
+    expect(result.current.isDark).toBe(true);
 
     const saved = await SettingsRepository.getAllSettings();
     expect(saved.themePreference).toBe('dark');
+  });
+
+  it('switches correctly to artistic themes (sepia, obsidian, things, nord, matcha)', async () => {
+    const wrapper = ({ children }) => <SettingsProvider>{children}</SettingsProvider>;
+    const { result } = await renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current?.language).toBeTruthy());
+
+    // 1. Moleskine Sepia
+    await act(async () => {
+      result.current.setThemePreference('sepia');
+    });
+    expect(result.current.themePreference).toBe('sepia');
+    expect(result.current.theme).toEqual(sepiaTheme);
+    expect(result.current.isDark).toBe(false);
+
+    // 2. Obsidian Slate
+    await act(async () => {
+      result.current.setThemePreference('obsidian');
+    });
+    expect(result.current.themePreference).toBe('obsidian');
+    expect(result.current.theme).toEqual(obsidianTheme);
+    expect(result.current.isDark).toBe(true);
+
+    // 3. Things Indigo
+    await act(async () => {
+      result.current.setThemePreference('things');
+    });
+    expect(result.current.themePreference).toBe('things');
+    expect(result.current.theme).toEqual(thingsTheme);
+    expect(result.current.isDark).toBe(false);
+
+    // 4. Arctic Nord
+    await act(async () => {
+      result.current.setThemePreference('nord');
+    });
+    expect(result.current.themePreference).toBe('nord');
+    expect(result.current.theme).toEqual(nordTheme);
+    expect(result.current.isDark).toBe(true);
+
+    // 5. Matcha Zen
+    await act(async () => {
+      result.current.setThemePreference('matcha');
+    });
+    expect(result.current.themePreference).toBe('matcha');
+    expect(result.current.theme).toEqual(matchaTheme);
+    expect(result.current.isDark).toBe(false);
   });
 
   it('updates language and persists to repository', async () => {

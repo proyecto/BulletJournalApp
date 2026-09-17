@@ -16,49 +16,29 @@
 import React, { createContext, useState, useContext, useMemo, useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import * as SettingsRepository from '../repositories/SettingsRepository';
+import {
+  lightTheme,
+  darkTheme,
+  sepiaTheme,
+  obsidianTheme,
+  thingsTheme,
+  nordTheme,
+  matchaTheme,
+  THEMES_MAP,
+  themeOptions,
+} from '../constants/themes';
 
-// ─── Definición de Temas ─────────────────────────────────────────────────────
-
-/**
- * Tema claro de la aplicación.
- * Todos los colores de la app deben consumirse de aquí (via `theme.xxx`)
- * para garantizar la consistencia visual y el soporte de modo oscuro.
- */
-export const lightTheme = {
-  background:       '#F7F9FC',
-  cardBackground:   '#FFFFFF',
-  cardCompleted:    '#F9F9F9',
-  text:             '#1A1A1A',
-  textSecondary:    '#8E8E93',
-  textCompleted:    '#A0A0A0',
-  border:           '#F0F0F0',
-  primary:          '#007AFF',
-  primaryBackground:'#E6F4FE',
-  tabBar:           '#FFFFFF',
-  inputBackground:  '#F2F2F7',
-  iconInactive:     '#666',
-  buttonBackground: '#D1D1D6',
-};
-
-/**
- * Tema oscuro de la aplicación.
- * Tiene exactamente las mismas claves que `lightTheme` para que los componentes
- * puedan intercambiarlo sin necesidad de lógica condicional en la UI.
- */
-export const darkTheme = {
-  background:       '#000000',
-  cardBackground:   '#1C1C1E',
-  cardCompleted:    '#121212',
-  text:             '#FFFFFF',
-  textSecondary:    '#EBEBF5',
-  textCompleted:    '#636366',
-  border:           '#38383A',
-  primary:          '#0A84FF',
-  primaryBackground:'#002E5C',
-  tabBar:           '#1C1C1E',
-  inputBackground:  '#2C2C2E',
-  iconInactive:     '#999',
-  buttonBackground: '#3A3A3C',
+// ─── Re-exportación de Temas ─────────────────────────────────────────────────
+export {
+  lightTheme,
+  darkTheme,
+  sepiaTheme,
+  obsidianTheme,
+  thingsTheme,
+  nordTheme,
+  matchaTheme,
+  THEMES_MAP,
+  themeOptions,
 };
 
 // ─── Contexto ─────────────────────────────────────────────────────────────────
@@ -233,7 +213,7 @@ export function SettingsProvider({ children }) {
     if (themePreference === 'system') {
       return systemColorScheme === 'dark' ? darkTheme : lightTheme;
     }
-    return themePreference === 'dark' ? darkTheme : lightTheme;
+    return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : lightTheme);
   }, [themePreference, systemColorScheme]);
 
   const resetSettings = useCallback(() => {
@@ -277,7 +257,7 @@ export function SettingsProvider({ children }) {
     setTypographyConfig,
     resetSettings,
     theme: activeTheme,
-    isDark: activeTheme === darkTheme,
+    isDark: Boolean(activeTheme?.isDark),
   }), [
     themePreference,
     setThemePreference,

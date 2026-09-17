@@ -36,6 +36,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
+import { StatusBar } from 'expo-status-bar';
 import PinLockModal from './src/components/PinLockModal';
 import { initDB } from './src/database/db';
 
@@ -44,10 +45,11 @@ initDB();
 SplashScreen.preventAutoHideAsync();
 
 function MainAppContent() {
-  const { isUnlocked, pinLockEnabled } = useSettings();
+  const { isUnlocked, pinLockEnabled, isDark } = useSettings();
 
   return (
     <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <NavigationContainer>
         <AppNavigator />
       </NavigationContainer>

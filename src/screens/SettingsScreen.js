@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text a
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useSettings } from '../context/SettingsContext';
+import { useSettings, themeOptions } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
 import { resetDatabase } from '../database/db';
 import { fontOptions } from '../constants/fonts';
@@ -132,6 +132,98 @@ export default function SettingsScreen({ navigation }) {
     </TouchableOpacity>
   );
 
+  const renderThemeOption = (item, isLast) => {
+    const isSelected = themePreference === item.id;
+    const displayName = language === 'es' ? item.name : item.nameEn;
+    const displayDesc = language === 'es' ? item.desc : item.descEn;
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[
+          styles.themeOptionRow,
+          {
+            backgroundColor: theme.cardBackground,
+            borderBottomColor: theme.border,
+            borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+          },
+        ]}
+        onPress={() => setThemePreference(item.id)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.themeOptionLeft}>
+          <View
+            style={[
+              styles.themeIconContainer,
+              {
+                backgroundColor: isSelected
+                  ? (theme.primaryBackground || theme.inputBackground)
+                  : theme.inputBackground,
+              },
+            ]}
+          >
+            <Ionicons
+              name={item.icon}
+              size={18}
+              color={isSelected ? theme.primary : theme.textSecondary}
+            />
+          </View>
+          <View style={styles.themeInfoContainer}>
+            <Text
+              variant="body"
+              style={[
+                styles.themeName,
+                { color: theme.text, fontWeight: isSelected ? '700' : '500' },
+              ]}
+            >
+              {displayName}
+            </Text>
+            <Text
+              variant="micro"
+              style={[styles.themeDesc, { color: theme.textSecondary }]}
+              numberOfLines={1}
+            >
+              {displayDesc}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.themeOptionRight}>
+          <View style={styles.swatchesRow}>
+            {item.swatches.map((color, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.swatchDot,
+                  {
+                    backgroundColor: color,
+                    borderColor: theme.border,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+
+          <View
+            style={[
+              styles.radioCircle,
+              { borderColor: isSelected ? theme.primary : theme.textSecondary },
+            ]}
+          >
+            {isSelected && (
+              <View
+                style={[
+                  styles.radioInner,
+                  { backgroundColor: theme.primary },
+                ]}
+              />
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
       <View style={[styles.header, { alignItems: 'center' }]}>
@@ -143,9 +235,7 @@ export default function SettingsScreen({ navigation }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {renderSectionHeader(language === 'es' ? 'APARIENCIA' : 'APPEARANCE')}
         <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-          {renderOption(language === 'es' ? 'Automático (Sistema)' : 'System Default', themePreference === 'system', () => setThemePreference('system'), 'phone-portrait-outline')}
-          {renderOption(language === 'es' ? 'Modo Claro' : 'Light Mode', themePreference === 'light', () => setThemePreference('light'), 'sunny-outline')}
-          {renderOption(language === 'es' ? 'Modo Oscuro' : 'Dark Mode', themePreference === 'dark', () => setThemePreference('dark'), 'moon-outline')}
+          {themeOptions.map((opt, index) => renderThemeOption(opt, index === themeOptions.length - 1))}
         </View>
 
         {renderSectionHeader(language === 'es' ? 'ZONA HORARIA' : 'TIMEZONE')}
@@ -369,6 +459,66 @@ const styles = StyleSheet.create({
   optionLeft: { flexDirection: 'row', alignItems: 'center' },
   optionIcon: { marginRight: 12 },
   optionLabel: { },
+  themeOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  themeOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  themeIconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  themeInfoContainer: {
+    flex: 1,
+  },
+  themeName: {
+    fontSize: 15,
+  },
+  themeDesc: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  themeOptionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  swatchesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  swatchDot: {
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    borderWidth: 1,
+    marginLeft: 3,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', borderRadius: 16, overflow: 'hidden', borderWidth: 1, maxHeight: '80%' },
   modalHeader: { padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, alignItems: 'center' },

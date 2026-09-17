@@ -28,7 +28,7 @@ LocaleConfig.locales['en'] = {
 
 export default function CalendarScreen({ navigation }) {
   const { entries, toggleStatus, toggleSignifier, updateEntryDate } = useJournal();
-  const { theme, language, timezone, isDark } = useSettings();
+  const { theme, language, timezone } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -90,30 +90,30 @@ export default function CalendarScreen({ navigation }) {
       if (hasEntries) {
         itemConfig.marked = true;
         itemConfig.dotColor = isSelected
-          ? (isDark ? '#000000' : '#FFFFFF')
+          ? theme.cardBackground
           : (theme.primary || '#007AFF');
       }
 
       // Estilos customizados
       if (isSelected) {
-        // Día visualizado: círculo negro con texto en blanco
+        // Día visualizado: contenedor con color primario/texto y texto en contraste
         itemConfig.customStyles = {
           container: {
-            backgroundColor: isDark ? '#FFFFFF' : '#1A1A1A',
+            backgroundColor: theme.text,
             borderRadius: 20,
             alignItems: 'center',
             justifyContent: 'center',
           },
           text: {
-            color: isDark ? '#1A1A1A' : '#FFFFFF',
+            color: theme.cardBackground,
             fontWeight: '700',
           },
         };
       } else if (isToday) {
-        // Día actual (HOY): cuadrado gris claro
+        // Día actual (HOY): contenedor sutil según tema
         itemConfig.customStyles = {
           container: {
-            backgroundColor: isDark ? '#38383A' : '#E5E5EA',
+            backgroundColor: theme.buttonBackground,
             borderRadius: 4,
             alignItems: 'center',
             justifyContent: 'center',
@@ -129,7 +129,7 @@ export default function CalendarScreen({ navigation }) {
     });
 
     return result;
-  }, [entries, selectedDate, theme, today, isDark]);
+  }, [entries, selectedDate, theme, today]);
 
   // Filtrar las entradas para el día seleccionado usando el servicio central
   const selectedEntries = useMemo(() => {

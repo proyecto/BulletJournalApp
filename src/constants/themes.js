@@ -1,0 +1,245 @@
+/**
+ * @module themes
+ * @description Catálogo de temas estéticos y tokens de color del Bullet Journal.
+ *
+ * Cada tema proporciona una paleta completa y coherente diseñada para journaling
+ * de alta legibilidad, reduciendo la fatiga visual y respetando el espíritu
+ * analógico y minimalista.
+ */
+
+export const lightTheme = {
+  id:               'light',
+  name:             'Monocromo Claro',
+  nameEn:           'Monochrome Light',
+  isDark:           false,
+  background:       '#F7F9FC',
+  cardBackground:   '#FFFFFF',
+  cardCompleted:    '#F9F9F9',
+  text:             '#1A1A1A',
+  textSecondary:    '#8E8E93',
+  textCompleted:    '#A0A0A0',
+  border:           '#E8EAEF',
+  primary:          '#007AFF',
+  primaryBackground:'#E6F4FE',
+  tabBar:           '#FFFFFF',
+  inputBackground:  '#F2F2F7',
+  iconInactive:     '#8E8E93',
+  buttonBackground: '#D1D1D6',
+  error:            '#FF3B30',
+};
+
+export const darkTheme = {
+  id:               'dark',
+  name:             'Monocromo Oscuro',
+  nameEn:           'Monochrome Dark',
+  isDark:           true,
+  background:       '#000000',
+  cardBackground:   '#1C1C1E',
+  cardCompleted:    '#121212',
+  text:             '#FFFFFF',
+  textSecondary:    '#EBEBF5',
+  textCompleted:    '#636366',
+  border:           '#38383A',
+  primary:          '#0A84FF',
+  primaryBackground:'#002E5C',
+  tabBar:           '#1C1C1E',
+  inputBackground:  '#2C2C2E',
+  iconInactive:     '#999999',
+  buttonBackground: '#3A3A3C',
+  error:            '#FF453A',
+};
+
+export const sepiaTheme = {
+  id:               'sepia',
+  name:             'Papel Moleskine',
+  nameEn:           'Warm Moleskine',
+  isDark:           false,
+  background:       '#F5EFEB',
+  cardBackground:   '#FCF9F5',
+  cardCompleted:    '#ECE4DA',
+  text:             '#2B2118',
+  textSecondary:    '#807164',
+  textCompleted:    '#A49689',
+  border:           '#E4D8CC',
+  primary:          '#A3532C',
+  primaryBackground:'#F5E5DC',
+  tabBar:           '#F5EFEB',
+  inputBackground:  '#ECE3D8',
+  iconInactive:     '#96887B',
+  buttonBackground: '#DECFC0',
+  error:            '#B33927',
+};
+
+export const obsidianTheme = {
+  id:               'obsidian',
+  name:             'Obsidian Pizarra',
+  nameEn:           'Obsidian Slate',
+  isDark:           true,
+  background:       '#141416',
+  cardBackground:   '#1E1E22',
+  cardCompleted:    '#17171A',
+  text:             '#E8E7EC',
+  textSecondary:    '#94929D',
+  textCompleted:    '#5C5A65',
+  border:           '#2E2D35',
+  primary:          '#9D7CFF',
+  primaryBackground:'#282046',
+  tabBar:           '#18181B',
+  inputBackground:  '#26252C',
+  iconInactive:     '#6B6976',
+  buttonBackground: '#363440',
+  error:            '#E05353',
+};
+
+export const thingsTheme = {
+  id:               'things',
+  name:             'Things Índigo',
+  nameEn:           'Things Indigo',
+  isDark:           false,
+  background:       '#F3F4F7',
+  cardBackground:   '#FFFFFF',
+  cardCompleted:    '#EBECEF',
+  text:             '#1D212A',
+  textSecondary:    '#7C8698',
+  textCompleted:    '#9EA7B5',
+  border:           '#DFE3EA',
+  primary:          '#3B6CF6',
+  primaryBackground:'#EBF1FF',
+  tabBar:           '#FFFFFF',
+  inputBackground:  '#EBEFF5',
+  iconInactive:     '#8C97A8',
+  buttonBackground: '#D8E0EB',
+  error:            '#E5484D',
+};
+
+export const nordTheme = {
+  id:               'nord',
+  name:             'Nórdico Polar',
+  nameEn:           'Arctic Nord',
+  isDark:           true,
+  background:       '#222630',
+  cardBackground:   '#2B313E',
+  cardCompleted:    '#1F232C',
+  text:             '#ECEFF4',
+  textSecondary:    '#96A1B4',
+  textCompleted:    '#586377',
+  border:           '#3A4354',
+  primary:          '#88C0D0',
+  primaryBackground:'#1D333E',
+  tabBar:           '#252B37',
+  inputBackground:  '#333B4A',
+  iconInactive:     '#6B788E',
+  buttonBackground: '#3E485B',
+  error:            '#BF616A',
+};
+
+export const matchaTheme = {
+  id:               'matcha',
+  name:             'Matcha Zen',
+  nameEn:           'Matcha Zen',
+  isDark:           false,
+  background:       '#EFF3EE',
+  cardBackground:   '#FAFCF9',
+  cardCompleted:    '#E2E9E0',
+  text:             '#1E2A21',
+  textSecondary:    '#6C7D70',
+  textCompleted:    '#93A296',
+  border:           '#D8E1D6',
+  primary:          '#3D724E',
+  primaryBackground:'#E0EFE5',
+  tabBar:           '#EAF0E8',
+  inputBackground:  '#E2EAE0',
+  iconInactive:     '#758778',
+  buttonBackground: '#CFDCD0',
+  error:            '#C04134',
+};
+
+/** Mapa para resolución O(1) del tema por su ID de preferencia */
+export const THEMES_MAP = {
+  light:    lightTheme,
+  dark:     darkTheme,
+  sepia:    sepiaTheme,
+  obsidian: obsidianTheme,
+  things:   thingsTheme,
+  nord:     nordTheme,
+  matcha:   matchaTheme,
+};
+
+/**
+ * Opciones disponibles para la UI de Ajustes con información descriptiva
+ * y muestras de color para previsualización.
+ */
+export const themeOptions = [
+  {
+    id: 'system',
+    icon: 'phone-portrait-outline',
+    name: 'Automático (Sistema)',
+    nameEn: 'System Default',
+    desc: 'Sigue la apariencia del sistema operativo.',
+    descEn: 'Follows OS light/dark appearance.',
+    swatches: ['#F7F9FC', '#FFFFFF', '#007AFF'],
+  },
+  {
+    id: 'light',
+    icon: 'sunny-outline',
+    name: 'Monocromo Claro',
+    nameEn: 'Monochrome Light',
+    desc: 'Blanco minimalista, negro y azul sutil.',
+    descEn: 'Minimalist white, crisp black and subtle blue.',
+    swatches: [lightTheme.background, lightTheme.cardBackground, lightTheme.primary],
+  },
+  {
+    id: 'dark',
+    icon: 'moon-outline',
+    name: 'Monocromo Oscuro',
+    nameEn: 'Monochrome Dark',
+    desc: 'Negro puro OLED, blanco y gris neutro.',
+    descEn: 'Pure OLED black, crisp white and neutral gray.',
+    swatches: [darkTheme.background, darkTheme.cardBackground, darkTheme.primary],
+  },
+  {
+    id: 'sepia',
+    icon: 'book-outline',
+    name: 'Papel Moleskine',
+    nameEn: 'Warm Moleskine',
+    desc: 'Pergamino cálido, tinta café y cuero terracota.',
+    descEn: 'Warm parchment, espresso ink and terracotta accent.',
+    swatches: [sepiaTheme.background, sepiaTheme.cardBackground, sepiaTheme.primary],
+  },
+  {
+    id: 'obsidian',
+    icon: 'prism-outline',
+    name: 'Obsidian Pizarra',
+    nameEn: 'Obsidian Slate',
+    desc: 'Carbón oscuro, bruma grafito y acento amatista.',
+    descEn: 'Dark charcoal, graphite mist and amethyst accent.',
+    swatches: [obsidianTheme.background, obsidianTheme.cardBackground, obsidianTheme.primary],
+  },
+  {
+    id: 'things',
+    icon: 'checkmark-circle-outline',
+    name: 'Things Índigo',
+    nameEn: 'Things Indigo',
+    desc: 'Lienzo porcelana e índigo eléctrico moderno.',
+    descEn: 'Porcelain canvas and modern electric indigo.',
+    swatches: [thingsTheme.background, thingsTheme.cardBackground, thingsTheme.primary],
+  },
+  {
+    id: 'nord',
+    icon: 'snow-outline',
+    name: 'Nórdico Polar',
+    nameEn: 'Arctic Nord',
+    desc: 'Noche polar ártica y azul glacial aurora.',
+    descEn: 'Arctic polar night and glacial aurora cyan.',
+    swatches: [nordTheme.background, nordTheme.cardBackground, nordTheme.primary],
+  },
+  {
+    id: 'matcha',
+    icon: 'leaf-outline',
+    name: 'Matcha Zen',
+    nameEn: 'Matcha Zen',
+    desc: 'Verde salvia sereno, papel washi y bambú.',
+    descEn: 'Serene sage green, washi paper and fresh bamboo.',
+    swatches: [matchaTheme.background, matchaTheme.cardBackground, matchaTheme.primary],
+  },
+];
