@@ -1,4 +1,27 @@
-import { generateMarkdownString } from './ExportImportService';
+import { generateMarkdownString, exportToMarkdown, exportToJSON, importFromJSON } from './ExportImportService';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import * as EntryRepository from '../repositories/EntryRepository';
+import * as ListRepository from '../repositories/ListRepository';
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(),
+}));
+
+jest.mock('../repositories/EntryRepository', () => ({
+  getAllEntries: jest.fn().mockResolvedValue([]),
+  insertEntry: jest.fn().mockResolvedValue(1),
+}));
+
+jest.mock('../repositories/ListRepository', () => ({
+  getAllLists: jest.fn().mockResolvedValue([]),
+  insertList: jest.fn().mockResolvedValue(1),
+}));
 
 describe('ExportImportService', () => {
   const sampleEntries = [
@@ -67,4 +90,25 @@ describe('ExportImportService', () => {
       expect(md).toContain('No hay listas personalizadas.');
     });
   });
+
+  describe('exportToMarkdown and exportToJSON', () => {
+    it('calls Sharing.shareAsync when exporting Markdown', async () => {
+      await exportToMarkdown(sampleEntries, sampleLists, 'es');
+      expect(Sharing.shareAsync).toHaveBeenCalled();
+    });
+
+    it('calls Sharing.shareAsync when exporting JSON', async () => {
+      await exportToJSON(sampleEntries, sampleLists, {}, 'es');
+      expect(Sharing.shareAsync).toHaveBeenCalled();
+    });
+  });
+
+  describe('importFromJSON', () => {
+    it('returns canceled when user cancels document picker', async () => {
+      DocumentPicker.getDocumentAsync.mockResolvedValueOnce({ canceled: true });
+      const result = await importFromJSON(jest.fn(), 'es');
+      expect(result).toEqual({ success: false, count: 0 });
+    });
+  });
 });
+

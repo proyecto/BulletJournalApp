@@ -5,7 +5,8 @@
  * con capacidad de importación/restauración de backups.
  */
 
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { getSignifierSymbol } from './DailyLogService';
@@ -98,6 +99,53 @@ export const generateMarkdownString = (entries = [], lists = [], language = 'es'
   return md;
 };
 
+const getCacheDirectory = () => {
+  if (Paths && Paths.cache && Paths.cache.uri) {
+    const uri = Paths.cache.uri;
+    return uri.endsWith('/') ? uri : `${uri}/`;
+  }
+  return FileSystem.cacheDirectory || '';
+};
+
+const writeFile = async (fileUri, content) => {
+  if (File) {
+    try {
+      const file = new File(fileUri);
+      if (typeof file.write === 'function') {
+        await file.write(content);
+        return file.uri || fileUri;
+      }
+    } catch (_) {
+      // Continuar al fallback legacy
+    }
+  }
+  if (FileSystem.writeAsStringAsync) {
+    await FileSystem.writeAsStringAsync(fileUri, content, {
+      encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
+    });
+  }
+  return fileUri;
+};
+
+const readFile = async (fileUri) => {
+  if (File) {
+    try {
+      const file = new File(fileUri);
+      if (typeof file.text === 'function') {
+        return await file.text();
+      }
+    } catch (_) {
+      // Continuar al fallback legacy
+    }
+  }
+  if (FileSystem.readAsStringAsync) {
+    return await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
+    });
+  }
+  throw new Error('No readAsString function available.');
+};
+
 /**
  * Exporta todas las entradas y listas a un archivo Markdown (.md) y abre el diálogo nativo para compartir/guardar.
  *
@@ -108,15 +156,13 @@ export const generateMarkdownString = (entries = [], lists = [], language = 'es'
 export const exportToMarkdown = async (entries, lists, language = 'es') => {
   const mdContent = generateMarkdownString(entries, lists, language);
   const fileName = `BulletJournal_Export_${new Date().toISOString().split('T')[0]}.md`;
-  const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+  const fileUri = `${getCacheDirectory()}${fileName}`;
 
-  await FileSystem.writeAsStringAsync(fileUri, mdContent, {
-    encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
-  });
+  const targetUri = await writeFile(fileUri, mdContent);
 
   const isAvailable = await Sharing.isAvailableAsync();
   if (isAvailable) {
-    await Sharing.shareAsync(fileUri, {
+    await Sharing.shareAsync(targetUri, {
       mimeType: 'text/markdown',
       dialogTitle: language === 'es' ? 'Exportar Bullet Journal (Markdown)' : 'Export Bullet Journal (Markdown)',
       UTI: 'net.daringfireball.markdown',
@@ -143,15 +189,13 @@ export const exportToJSON = async (entries, lists, settings = {}, language = 'es
 
   const jsonContent = JSON.stringify(backupData, null, 2);
   const fileName = `BulletJournal_Backup_${new Date().toISOString().split('T')[0]}.json`;
-  const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+  const fileUri = `${getCacheDirectory()}${fileName}`;
 
-  await FileSystem.writeAsStringAsync(fileUri, jsonContent, {
-    encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
-  });
+  const targetUri = await writeFile(fileUri, jsonContent);
 
   const isAvailable = await Sharing.isAvailableAsync();
   if (isAvailable) {
-    await Sharing.shareAsync(fileUri, {
+    await Sharing.shareAsync(targetUri, {
       mimeType: 'application/json',
       dialogTitle: language === 'es' ? 'Exportar Backup (JSON)' : 'Export Backup (JSON)',
       UTI: 'public.json',
@@ -179,9 +223,7 @@ export const importFromJSON = async (reloadJournalData, language = 'es') => {
     }
 
     const fileAsset = result.assets[0];
-    const fileContent = await FileSystem.readAsStringAsync(fileAsset.uri, {
-      encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
-    });
+    const fileContent = await readFile(fileAsset.uri);
 
     const parsedData = JSON.parse(fileContent);
 
