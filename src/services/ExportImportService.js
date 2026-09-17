@@ -111,7 +111,7 @@ export const exportToMarkdown = async (entries, lists, language = 'es') => {
   const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
 
   await FileSystem.writeAsStringAsync(fileUri, mdContent, {
-    encoding: FileSystem.EncodingType.UTF8,
+    encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
   });
 
   const isAvailable = await Sharing.isAvailableAsync();
@@ -146,7 +146,7 @@ export const exportToJSON = async (entries, lists, settings = {}, language = 'es
   const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
 
   await FileSystem.writeAsStringAsync(fileUri, jsonContent, {
-    encoding: FileSystem.EncodingType.UTF8,
+    encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
   });
 
   const isAvailable = await Sharing.isAvailableAsync();
@@ -180,7 +180,7 @@ export const importFromJSON = async (reloadJournalData, language = 'es') => {
 
     const fileAsset = result.assets[0];
     const fileContent = await FileSystem.readAsStringAsync(fileAsset.uri, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: FileSystem.EncodingType?.UTF8 || 'utf8',
     });
 
     const parsedData = JSON.parse(fileContent);
