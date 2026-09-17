@@ -4,7 +4,7 @@
  * 100% integrado con el sistema de diseño, temas (claro/oscuro) y tipografía de la app.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
