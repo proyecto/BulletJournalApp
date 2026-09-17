@@ -523,40 +523,6 @@ export default function CustomDatePickerModal({
                         />
                       </View>
                     </View>
-
-                    {/* Chips Atajos de horas frecuentes */}
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.timeChipsContent}
-                      style={{ marginTop: 4 }}
-                    >
-                      {['08:00', '09:30', '10:00', '12:15', '14:00', '15:15', '16:30', '18:00', '20:00'].map((timeStr) => {
-                        const isSelected = tempTime === timeStr;
-                        return (
-                          <TouchableOpacity
-                            key={timeStr}
-                            onPress={() => setTempTime(timeStr)}
-                            style={[
-                              styles.timeChip,
-                              {
-                                backgroundColor: isSelected ? theme.text : theme.inputBackground,
-                              },
-                            ]}
-                          >
-                            <Text
-                              variant="micro"
-                              style={{
-                                color: isSelected ? theme.cardBackground : theme.text,
-                                fontWeight: isSelected ? '700' : '500',
-                              }}
-                            >
-                              {timeStr}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
                   </View>
                 ) : null}
               </View>
