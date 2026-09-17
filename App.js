@@ -32,6 +32,7 @@ import { SourceCodePro_400Regular, SourceCodePro_500Medium, SourceCodePro_600Sem
 import { Caveat_400Regular, Caveat_500Medium, Caveat_600SemiBold, Caveat_700Bold } from '@expo-google-fonts/caveat';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { DancingScript_400Regular, DancingScript_500Medium, DancingScript_600SemiBold, DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
@@ -167,10 +168,12 @@ export default function App() {
   }
 
   return (
-    <SettingsProvider>
-      <JournalProvider>
-        <MainAppContent />
-      </JournalProvider>
-    </SettingsProvider>
+    <SafeAreaProvider>
+      <SettingsProvider>
+        <JournalProvider>
+          <MainAppContent />
+        </JournalProvider>
+      </SettingsProvider>
+    </SafeAreaProvider>
   );
 }
