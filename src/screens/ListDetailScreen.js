@@ -35,7 +35,7 @@ import {
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSignifierIcon, getSignifierColor } from '../services/DailyLogService';
+import { getSignifierSymbol } from '../services/DailyLogService';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
