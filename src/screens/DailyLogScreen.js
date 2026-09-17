@@ -159,10 +159,11 @@ export default function DailyLogScreen({ navigation }) {
       orderedEntries.length === currentLogEntries.length &&
       orderedEntries.every(
         (item, idx) =>
-          item.id     === currentLogEntries[idx]?.id     &&
-          item.status === currentLogEntries[idx]?.status &&
-          item.text   === currentLogEntries[idx]?.text   &&
-          item.date   === currentLogEntries[idx]?.date
+          item.id        === currentLogEntries[idx]?.id        &&
+          item.status    === currentLogEntries[idx]?.status    &&
+          item.signifier === currentLogEntries[idx]?.signifier &&
+          item.text      === currentLogEntries[idx]?.text      &&
+          item.date      === currentLogEntries[idx]?.date
       );
 
     if (!isSame) {

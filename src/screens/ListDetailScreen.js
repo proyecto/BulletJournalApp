@@ -138,9 +138,10 @@ export default function ListDetailScreen({ route, navigation }) {
       orderedItems.length === listItems.length &&
       orderedItems.every(
         (item, idx) =>
-          item.id     === listItems[idx]?.id     &&
-          item.status === listItems[idx]?.status &&
-          item.text   === listItems[idx]?.text
+          item.id        === listItems[idx]?.id        &&
+          item.status    === listItems[idx]?.status    &&
+          item.signifier === listItems[idx]?.signifier &&
+          item.text      === listItems[idx]?.text
       );
 
     if (!isSame) {
