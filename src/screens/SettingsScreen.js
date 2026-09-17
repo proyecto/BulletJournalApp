@@ -24,6 +24,8 @@ export default function SettingsScreen({ navigation }) {
     setFirstDayOfWeek, 
     fontFamily, 
     setFontFamily, 
+    syncThemeFont,
+    setSyncThemeFont,
     resetSettings,
     pinLockEnabled,
   } = useSettings();
@@ -169,15 +171,25 @@ export default function SettingsScreen({ navigation }) {
             />
           </View>
           <View style={styles.themeInfoContainer}>
-            <Text
-              variant="body"
-              style={[
-                styles.themeName,
-                { color: theme.text, fontWeight: isSelected ? '700' : '500' },
-              ]}
-            >
-              {displayName}
-            </Text>
+            <View style={styles.themeTitleRow}>
+              <RNText
+                style={[
+                  styles.themeName,
+                  { color: theme.text, fontWeight: isSelected ? '700' : '600' },
+                  item.fontStyle,
+                ]}
+              >
+                {displayName}
+              </RNText>
+              {item.recommendedFontLabel && item.id !== 'system' && item.id !== 'light' && item.id !== 'dark' && (
+                <View style={[styles.fontBadge, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                  <Ionicons name="text-outline" size={9} color={theme.textSecondary} style={{ marginRight: 2 }} />
+                  <RNText style={[styles.fontBadgeText, { color: theme.textSecondary }, item.fontStyle]}>
+                    {item.recommendedFontLabel}
+                  </RNText>
+                </View>
+              )}
+            </View>
             <Text
               variant="micro"
               style={[styles.themeDesc, { color: theme.textSecondary }]}
@@ -236,6 +248,38 @@ export default function SettingsScreen({ navigation }) {
         {renderSectionHeader(language === 'es' ? 'APARIENCIA' : 'APPEARANCE')}
         <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
           {themeOptions.map((opt, index) => renderThemeOption(opt, index === themeOptions.length - 1))}
+        </View>
+
+        {/* Toggle para vincular la tipografía recomendada al tema */}
+        <View style={[styles.syncCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+          <TouchableOpacity
+            style={styles.syncRow}
+            onPress={() => setSyncThemeFont(!syncThemeFont)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.syncLeft}>
+              <View style={[styles.syncIconContainer, { backgroundColor: syncThemeFont ? (theme.primaryBackground || theme.inputBackground) : theme.inputBackground }]}>
+                <Ionicons
+                  name={syncThemeFont ? "color-filter" : "color-filter-outline"}
+                  size={18}
+                  color={syncThemeFont ? theme.primary : theme.textSecondary}
+                />
+              </View>
+              <View style={styles.syncTextContainer}>
+                <Text variant="body" style={[styles.syncTitle, { color: theme.text, fontWeight: '600' }]}>
+                  {language === 'es' ? 'Vincular fuente al tema' : 'Sync font with theme'}
+                </Text>
+                <Text variant="micro" style={[styles.syncSubtitle, { color: theme.textSecondary }]}>
+                  {language === 'es'
+                    ? 'Aplica la tipografía recomendada al cambiar de estética'
+                    : 'Automatically applies curated font when switching themes'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.toggleTrack, { backgroundColor: syncThemeFont ? theme.primary : theme.inputBackground, borderColor: theme.border }]}>
+              <View style={[styles.toggleThumb, { backgroundColor: syncThemeFont ? '#FFFFFF' : theme.textSecondary, transform: [{ translateX: syncThemeFont ? 14 : 0 }] }]} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {renderSectionHeader(language === 'es' ? 'ZONA HORARIA' : 'TIMEZONE')}
@@ -486,9 +530,75 @@ const styles = StyleSheet.create({
   themeName: {
     fontSize: 15,
   },
+  themeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  fontBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginLeft: 6,
+  },
+  fontBadgeText: {
+    fontSize: 10,
+  },
   themeDesc: {
     fontSize: 11,
     marginTop: 2,
+  },
+  syncCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  syncLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  syncIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  syncTextContainer: {
+    flex: 1,
+  },
+  syncTitle: {
+    fontSize: 14,
+  },
+  syncSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  toggleTrack: {
+    width: 42,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
   },
   themeOptionRight: {
     flexDirection: 'row',

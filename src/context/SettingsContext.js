@@ -26,6 +26,7 @@ import {
   matchaTheme,
   THEMES_MAP,
   themeOptions,
+  TYPOGRAPHY_PRESETS,
 } from '../constants/themes';
 
 // ─── Re-exportación de Temas ─────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export {
   matchaTheme,
   THEMES_MAP,
   themeOptions,
+  TYPOGRAPHY_PRESETS,
 };
 
 // ─── Contexto ─────────────────────────────────────────────────────────────────
@@ -80,6 +82,9 @@ export function SettingsProvider({ children }) {
     micro:   { fontFamily: null, fontSize: 12, fontWeight: '400', color: null },
   });
 
+  /** @type {boolean} Si la fuente recomendada del tema se sincroniza al cambiar de tema */
+  const [syncThemeFont, setSyncThemeFontState] = useState(true);
+
   /** @type {boolean} Si el bloqueo por PIN está activado */
   const [pinLockEnabled, setPinLockEnabledState] = useState(false);
   /** @type {string|null} Código PIN numérico de 4 dígitos */
@@ -103,6 +108,11 @@ export function SettingsProvider({ children }) {
         if (settings.firstDayOfWeek)  setFirstDayOfWeekState(settings.firstDayOfWeek);
         if (settings.fontFamily)      setFontFamilyState(settings.fontFamily);
         if (settings.pinCode)         setPinCodeState(settings.pinCode);
+
+        if (settings.syncThemeFont !== undefined) {
+          const isSync = settings.syncThemeFont === 'true' || settings.syncThemeFont === true;
+          setSyncThemeFontState(isSync);
+        }
 
         if (settings.pinLockEnabled !== undefined) {
           const isEnabled = settings.pinLockEnabled === 'true' || settings.pinLockEnabled === true;
@@ -132,10 +142,23 @@ export function SettingsProvider({ children }) {
    * Si en el futuro la persistencia cambia (ej: a una API REST), solo se cambia aquí.
    */
 
-  /** Actualiza la preferencia de tema y la persiste. */
+  /** Actualiza la preferencia de tema y la persiste, sincronizando la fuente si está activado. */
   const setThemePreference = useCallback((val) => {
     setThemePreferenceState(val);
     SettingsRepository.saveSetting('themePreference', val);
+    if (syncThemeFont) {
+      const themeObj = THEMES_MAP[val];
+      if (themeObj && themeObj.recommendedFont) {
+        setFontFamilyState(themeObj.recommendedFont);
+        SettingsRepository.saveSetting('fontFamily', themeObj.recommendedFont);
+      }
+    }
+  }, [syncThemeFont]);
+
+  /** Activa o desactiva la sincronización de la fuente recomendada con el tema. */
+  const setSyncThemeFont = useCallback((val) => {
+    setSyncThemeFontState(val);
+    SettingsRepository.saveSetting('syncThemeFont', val ? 'true' : 'false');
   }, []);
 
   /** Actualiza el idioma de la interfaz y lo persiste. */
@@ -207,6 +230,22 @@ export function SettingsProvider({ children }) {
     });
   }, []);
 
+  /**
+   * Aplica un preset tipográfico completo (fuente global y variantes h1..micro).
+   */
+  const applyTypographyPreset = useCallback((presetId) => {
+    const preset = TYPOGRAPHY_PRESETS.find(p => p.id === presetId);
+    if (!preset) return;
+    if (preset.globalFont) {
+      setFontFamilyState(preset.globalFont);
+      SettingsRepository.saveSetting('fontFamily', preset.globalFont);
+    }
+    if (preset.config) {
+      setTypographyConfigState(preset.config);
+      SettingsRepository.saveSetting('typographyConfig', preset.config);
+    }
+  }, []);
+
   // ── Tema Activo (Memoization) ─────────────────────────────────────────────────
 
   const activeTheme = useMemo(() => {
@@ -225,6 +264,7 @@ export function SettingsProvider({ children }) {
     setPinCodeState(null);
     setIsUnlockedState(true);
     setFontFamilyState('system');
+    setSyncThemeFontState(true);
     setTypographyConfigState({
       h1:      { fontFamily: null, fontSize: 30, fontWeight: '800', color: null },
       h2:      { fontFamily: null, fontSize: 24, fontWeight: '800', color: null },
@@ -253,8 +293,11 @@ export function SettingsProvider({ children }) {
     lockApp,
     fontFamily,
     setFontFamily,
+    syncThemeFont,
+    setSyncThemeFont,
     typographyConfig,
     setTypographyConfig,
+    applyTypographyPreset,
     resetSettings,
     theme: activeTheme,
     isDark: Boolean(activeTheme?.isDark),
@@ -276,8 +319,11 @@ export function SettingsProvider({ children }) {
     lockApp,
     fontFamily,
     setFontFamily,
+    syncThemeFont,
+    setSyncThemeFont,
     typographyConfig,
     setTypographyConfig,
+    applyTypographyPreset,
     resetSettings,
     activeTheme,
   ]);

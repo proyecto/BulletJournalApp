@@ -73,6 +73,7 @@ describe('SettingsContext', () => {
     expect(result.current.themePreference).toBe('sepia');
     expect(result.current.theme).toEqual(sepiaTheme);
     expect(result.current.isDark).toBe(false);
+    expect(result.current.fontFamily).toBe('eb-garamond');
 
     // 2. Obsidian Slate
     await act(async () => {
@@ -81,6 +82,7 @@ describe('SettingsContext', () => {
     expect(result.current.themePreference).toBe('obsidian');
     expect(result.current.theme).toEqual(obsidianTheme);
     expect(result.current.isDark).toBe(true);
+    expect(result.current.fontFamily).toBe('jetbrains');
 
     // 3. Things Indigo
     await act(async () => {
@@ -89,6 +91,7 @@ describe('SettingsContext', () => {
     expect(result.current.themePreference).toBe('things');
     expect(result.current.theme).toEqual(thingsTheme);
     expect(result.current.isDark).toBe(false);
+    expect(result.current.fontFamily).toBe('inter');
 
     // 4. Arctic Nord
     await act(async () => {
@@ -97,6 +100,7 @@ describe('SettingsContext', () => {
     expect(result.current.themePreference).toBe('nord');
     expect(result.current.theme).toEqual(nordTheme);
     expect(result.current.isDark).toBe(true);
+    expect(result.current.fontFamily).toBe('space-mono');
 
     // 5. Matcha Zen
     await act(async () => {
@@ -105,6 +109,55 @@ describe('SettingsContext', () => {
     expect(result.current.themePreference).toBe('matcha');
     expect(result.current.theme).toEqual(matchaTheme);
     expect(result.current.isDark).toBe(false);
+    expect(result.current.fontFamily).toBe('quicksand');
+  });
+
+  it('respects syncThemeFont toggle when switching themes', async () => {
+    const wrapper = ({ children }) => <SettingsProvider>{children}</SettingsProvider>;
+    const { result } = await renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current?.language).toBeTruthy());
+
+    // Disable syncThemeFont and set custom font
+    await act(async () => {
+      result.current.setSyncThemeFont(false);
+      result.current.setFontFamily('caveat');
+    });
+
+    expect(result.current.syncThemeFont).toBe(false);
+    expect(result.current.fontFamily).toBe('caveat');
+
+    // Switch theme to obsidian - font should stay 'caveat'
+    await act(async () => {
+      result.current.setThemePreference('obsidian');
+    });
+
+    expect(result.current.themePreference).toBe('obsidian');
+    expect(result.current.fontFamily).toBe('caveat');
+  });
+
+  it('applies typography presets correctly', async () => {
+    const wrapper = ({ children }) => <SettingsProvider>{children}</SettingsProvider>;
+    const { result } = await renderHook(() => useSettings(), { wrapper });
+
+    await waitFor(() => expect(result.current?.language).toBeTruthy());
+
+    await act(async () => {
+      result.current.applyTypographyPreset('editorial');
+    });
+
+    expect(result.current.fontFamily).toBe('eb-garamond');
+    expect(result.current.typographyConfig.h1.fontFamily).toBe('playfair-display');
+    expect(result.current.typographyConfig.body.fontFamily).toBe('eb-garamond');
+
+    // Apply hacker preset
+    await act(async () => {
+      result.current.applyTypographyPreset('hacker');
+    });
+
+    expect(result.current.fontFamily).toBe('jetbrains');
+    expect(result.current.typographyConfig.h1.fontFamily).toBe('jetbrains');
+    expect(result.current.typographyConfig.h3.fontFamily).toBe('fira-code');
   });
 
   it('updates language and persists to repository', async () => {
