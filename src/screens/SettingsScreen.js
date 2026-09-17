@@ -7,15 +7,32 @@ import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
 import { resetDatabase } from '../database/db';
 import { fontOptions } from '../constants/fonts';
+import PinLockModal from '../components/PinLockModal';
 
 import { exportToMarkdown, exportToJSON, importFromJSON } from '../services/ExportImportService';
 
 export default function SettingsScreen({ navigation }) {
-  const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone, firstDayOfWeek, setFirstDayOfWeek, fontFamily, setFontFamily, resetSettings } = useSettings();
+  const { 
+    theme, 
+    themePreference, 
+    setThemePreference, 
+    language, 
+    setLanguage, 
+    timezone, 
+    setTimezone, 
+    firstDayOfWeek, 
+    setFirstDayOfWeek, 
+    fontFamily, 
+    setFontFamily, 
+    resetSettings,
+    pinLockEnabled,
+  } = useSettings();
   const { entries, lists, resetJournal, reloadJournalData } = useJournal();
   const insets = useSafeAreaInsets();
 
   const [isFontModalVisible, setFontModalVisible] = useState(false);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pinModalMode, setPinModalMode] = useState('setup');
 
   const currentFontLabel = fontOptions.find(f => f.id === fontFamily)?.label || fontOptions[0].label;
 
@@ -177,6 +194,50 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {renderSectionHeader(language === 'es' ? 'SEGURIDAD Y PRIVACIDAD' : 'SECURITY & PRIVACY')}
+        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+          <TouchableOpacity 
+            style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomColor: pinLockEnabled ? theme.border : 'transparent', borderBottomWidth: pinLockEnabled ? StyleSheet.hairlineWidth : 0 }]} 
+            onPress={() => {
+              setPinModalMode(pinLockEnabled ? 'disable' : 'setup');
+              setPinModalVisible(true);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <Ionicons name={pinLockEnabled ? 'lock-closed-outline' : 'lock-open-outline'} size={20} color={theme.primary} style={styles.optionIcon} />
+              <Text variant="body" style={[styles.optionLabel, { color: theme.text }]}>
+                {language === 'es' ? 'Bloqueo por PIN' : 'PIN Lock'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text variant="caption" style={{ color: pinLockEnabled ? theme.primary : theme.textSecondary, marginRight: 6 }}>
+                {pinLockEnabled ? (language === 'es' ? 'Activado' : 'Enabled') : (language === 'es' ? 'Desactivado' : 'Disabled')}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+            </View>
+          </TouchableOpacity>
+
+          {pinLockEnabled && (
+            <TouchableOpacity 
+              style={[styles.optionRow, { backgroundColor: theme.cardBackground, borderBottomWidth: 0 }]} 
+              onPress={() => {
+                setPinModalMode('change');
+                setPinModalVisible(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.optionLeft}>
+                <Ionicons name="key-outline" size={20} color={theme.primary} style={styles.optionIcon} />
+                <Text variant="body" style={[styles.optionLabel, { color: theme.text }]}>
+                  {language === 'es' ? 'Cambiar PIN' : 'Change PIN'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {renderSectionHeader(language === 'es' ? 'EXPORTAR E IMPORTAR' : 'EXPORT & IMPORT')}
         <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
           <TouchableOpacity 
@@ -285,6 +346,14 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Modal de Configuración/Modificación/Desactivación de PIN */}
+      <PinLockModal
+        visible={pinModalVisible}
+        mode={pinModalMode}
+        onSuccess={() => setPinModalVisible(false)}
+        onCancel={() => setPinModalVisible(false)}
+      />
     </View>
   );
 }

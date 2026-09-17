@@ -34,12 +34,26 @@ import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { DancingScript_400Regular, DancingScript_500Medium, DancingScript_600SemiBold, DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
-import { SettingsProvider } from './src/context/SettingsContext';
+import { SettingsProvider, useSettings } from './src/context/SettingsContext';
+import PinLockModal from './src/components/PinLockModal';
 import { initDB } from './src/database/db';
 
 initDB();
 
 SplashScreen.preventAutoHideAsync();
+
+function MainAppContent() {
+  const { isUnlocked, pinLockEnabled } = useSettings();
+
+  return (
+    <>
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+      <PinLockModal visible={!isUnlocked && pinLockEnabled} mode="unlock" />
+    </>
+  );
+}
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -155,9 +169,7 @@ export default function App() {
   return (
     <SettingsProvider>
       <JournalProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
+        <MainAppContent />
       </JournalProvider>
     </SettingsProvider>
   );

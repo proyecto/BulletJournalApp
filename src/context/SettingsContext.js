@@ -100,6 +100,13 @@ export function SettingsProvider({ children }) {
     micro:   { fontFamily: null, fontSize: 12, fontWeight: '400', color: null },
   });
 
+  /** @type {boolean} Si el bloqueo por PIN está activado */
+  const [pinLockEnabled, setPinLockEnabledState] = useState(false);
+  /** @type {string|null} Código PIN numérico de 4 dígitos */
+  const [pinCode, setPinCodeState] = useState(null);
+  /** @type {boolean} Estado de sesión actual (true = desbloqueada, false = requiere PIN) */
+  const [isUnlocked, setIsUnlockedState] = useState(true);
+
   /**
    * Carga inicial de todas las preferencias guardadas desde SQLite.
    * Se ejecuta una sola vez al montar el Provider.
@@ -115,6 +122,16 @@ export function SettingsProvider({ children }) {
         if (settings.timezone)        setTimezoneState(settings.timezone);
         if (settings.firstDayOfWeek)  setFirstDayOfWeekState(settings.firstDayOfWeek);
         if (settings.fontFamily)      setFontFamilyState(settings.fontFamily);
+        if (settings.pinCode)         setPinCodeState(settings.pinCode);
+
+        if (settings.pinLockEnabled !== undefined) {
+          const isEnabled = settings.pinLockEnabled === 'true' || settings.pinLockEnabled === true;
+          setPinLockEnabledState(isEnabled);
+          if (isEnabled && settings.pinCode) {
+            setIsUnlockedState(false); // Requiere PIN al arrancar si está activado
+          }
+        }
+
         if (settings.typographyConfig) {
           // typographyConfig es un objeto complejo serializado como JSON string
           setTypographyConfigState(JSON.parse(settings.typographyConfig));
@@ -159,6 +176,40 @@ export function SettingsProvider({ children }) {
     SettingsRepository.saveSetting('firstDayOfWeek', val);
   };
 
+  /** Configura un nuevo PIN de 4 dígitos y activa el bloqueo. */
+  const setupPin = (code) => {
+    setPinCodeState(code);
+    setPinLockEnabledState(true);
+    setIsUnlockedState(true);
+    SettingsRepository.saveSetting('pinCode', code);
+    SettingsRepository.saveSetting('pinLockEnabled', 'true');
+  };
+
+  /** Elimina el PIN y desactiva el bloqueo. */
+  const removePin = () => {
+    setPinCodeState(null);
+    setPinLockEnabledState(false);
+    setIsUnlockedState(true);
+    SettingsRepository.saveSetting('pinCode', '');
+    SettingsRepository.saveSetting('pinLockEnabled', 'false');
+  };
+
+  /** Comprueba el PIN introducido y desbloquea si es correcto. */
+  const verifyPin = (enteredCode) => {
+    if (enteredCode === pinCode) {
+      setIsUnlockedState(true);
+      return true;
+    }
+    return false;
+  };
+
+  /** Bloquea manualmente la sesión de la aplicación. */
+  const lockApp = () => {
+    if (pinLockEnabled && pinCode) {
+      setIsUnlockedState(false);
+    }
+  };
+
   /** Actualiza la familia tipográfica global y la persiste. */
   const setFontFamily = (val) => {
     setFontFamilyState(val);
@@ -197,6 +248,9 @@ export function SettingsProvider({ children }) {
     setLanguageState('es');
     setTimezoneState('Europe/Madrid');
     setFirstDayOfWeekState('monday');
+    setPinLockEnabledState(false);
+    setPinCodeState(null);
+    setIsUnlockedState(true);
     setFontFamilyState('system');
     setTypographyConfigState({
       h1:      { fontFamily: null, fontSize: 30, fontWeight: '800', color: null },
@@ -221,6 +275,13 @@ export function SettingsProvider({ children }) {
       setTimezone,
       firstDayOfWeek,
       setFirstDayOfWeek,
+      pinLockEnabled,
+      pinCode,
+      isUnlocked,
+      setupPin,
+      removePin,
+      verifyPin,
+      lockApp,
       fontFamily,
       setFontFamily,
       typographyConfig,
