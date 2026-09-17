@@ -81,6 +81,9 @@ export default function ListDetailScreen({ route, navigation }) {
   /** Texto en curso del campo de nuevo elemento */
   const [inputText, setInputText] = useState('');
 
+  /** Significador purista seleccionado para el nuevo elemento ('priority' | 'inspiration' | null) */
+  const [selectedSignifier, setSelectedSignifier] = useState(null);
+
   // ── Filtrado de entradas de la lista ──────────────────────────────────────────
 
   /**
