@@ -16,7 +16,7 @@
  * const { entries, addEntry } = useJournal();
  */
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import * as EntryRepository from '../repositories/EntryRepository';
 import * as ListRepository from '../repositories/ListRepository';
 import { createList } from '../factories/EntryFactory';
@@ -70,17 +70,12 @@ export const JournalProvider = ({ children }) => {
     loadJournal();
   }, []);
 
-  // ─── Métodos de la Facade (API Pública) ────────────────────────────────────
+  // ─── Métodos de la Facade (API Pública Memoizada) ────────────────────────────
 
   /**
    * Añade una nueva entrada al diario.
-   * Persiste en SQLite y actualiza el estado en memoria para notificar a los observers.
-   * El objeto `entry` debe ser creado con `EntryFactory` para garantizar
-   * que todos los campos obligatorios están presentes.
-   *
-   * @param {Object} entry - El objeto entrada (creado por EntryFactory).
    */
-  const addEntry = async (entry) => {
+  const addEntry = useCallback(async (entry) => {
     try {
       await EntryRepository.insertEntry(entry);
       // Actualización optimista: añadimos al estado sin re-consultar la BD
@@ -88,109 +83,248 @@ export const JournalProvider = ({ children }) => {
     } catch (e) {
       console.error('[JournalContext] Error al añadir entrada:', e);
     }
-  };
+  }, []);
 
   /**
    * Añade una nueva lista de usuario.
-   * Usa `EntryFactory.createList()` para garantizar la consistencia del objeto.
-   *
-   * @param {string} title - El nombre de la nueva lista.
    */
-  const addList = async (title) => {
-    // La factory calcula el order_index basándose en el número de listas actuales
-    const newList = createList(title, lists.length);
+  const addList = useCallback(async (title) => {
     try {
-      await ListRepository.insertList(newList);
-      setLists(prev => [...prev, newList]);
+      setLists(prev => {
+        const newList = createList(title, prev.length);
+        ListRepository.insertList(newList).catch(e => {
+          console.error('[JournalContext] Error al añadir lista en SQLite:', e);
+        });
+        return [...prev, newList];
+      });
     } catch (e) {
       console.error('[JournalContext] Error al añadir lista:', e);
     }
-  };
+  }, []);
 
   /**
-   * Persiste el nuevo orden de las listas tras un drag & drop.
-   * Usa una actualización optimista: el estado se actualiza inmediatamente
-   * para que la UI sea fluida, y la persistencia ocurre en segundo plano.
-   *
-   * @param {Array<Object>} newOrder - El array de listas en su nuevo orden.
+   * Persiste el nuevo orden de las listas tras un drag & drop usando una transacción en lote.
    */
-  const reorderLists = async (newOrder) => {
-    // Optimistic update: el usuario ve el cambio inmediatamente
+  const reorderLists = useCallback(async (newOrder) => {
     setLists(newOrder);
     try {
-      // Persistimos cada cambio de orden en la BD secuencialmente
-      for (let i = 0; i < newOrder.length; i++) {
-        await ListRepository.updateListOrder(newOrder[i].id, i);
-      }
+      await ListRepository.batchUpdateListOrders(newOrder);
     } catch (e) {
       console.error('[JournalContext] Error al reordenar listas:', e);
     }
-  };
+  }, []);
 
   /**
-   * Elimina una lista y TODAS sus entradas asociadas.
-   * El orden de operaciones es crítico: primero borrar las entradas (hijos),
-   * luego la lista (padre). SQLite no tiene Foreign Key constraints activadas
-   * por defecto en expo-sqlite, así que gestionamos la integridad manualmente.
-   *
-   * @param {string} id - El ID de la lista a eliminar.
+   * Elimina una lista y sus entradas asociadas.
    */
-  const deleteList = async (id) => {
+  const deleteList = useCallback(async (id) => {
     try {
-      // 1. Borrar entradas hijas (integridad referencial manual)
       await EntryRepository.deleteEntriesByListId(id);
-      // 2. Borrar la lista padre
       await ListRepository.deleteList(id);
-      // 3. Actualizar el estado en memoria
       setLists(prev => prev.filter(list => list.id !== id));
       setEntries(prev => prev.filter(entry => entry.listId !== id));
     } catch (e) {
       console.error('[JournalContext] Error al eliminar lista:', e);
     }
-  };
+  }, []);
 
   /**
    * Alterna el estado de completado de una tarea.
-   * Solo funciona con entradas de tipo 'task'.
-   * Si la tarea está 'open' -> la completa y guarda `completedAt`.
-   * Si la tarea está 'completed' -> la reabre y borra `completedAt`.
-   *
-   * @param {string} id - El ID de la entrada a modificar.
-   * @param {string|null} currentLogDate - La fecha del día visualizado (para `completedAt`).
    */
-  const toggleStatus = async (id, currentLogDate) => {
-    const entry = entries.find(e => e.id === id);
-    if (!entry || entry.type !== 'task') return; // Solo las tareas se pueden completar
+  const toggleStatus = useCallback(async (id, currentLogDate) => {
+    setEntries(prev => {
+      const entry = prev.find(e => e.id === id);
+      if (!entry || (entry.type !== 'task' && entry.type !== 'event')) return prev;
 
-    const isCompleting    = entry.status === 'open';
-    const newStatus       = isCompleting ? 'completed' : 'open';
-    const newCompletedAt  = isCompleting ? currentLogDate : null;
+      const isCompleting    = entry.status === 'open';
+      const newStatus       = isCompleting ? 'completed' : 'open';
+      const newCompletedAt  = isCompleting ? currentLogDate : null;
 
+      EntryRepository.updateEntryStatus(id, newStatus, newCompletedAt).catch(e => {
+        console.error('[JournalContext] Error al cambiar estado de tarea:', e);
+      });
+
+      return prev.map(e => e.id === id ? { ...e, status: newStatus, completedAt: newCompletedAt } : e);
+    });
+  }, []);
+
+  /**
+   * Elimina una entrada del diario por su ID.
+   */
+  const deleteEntry = useCallback(async (id) => {
     try {
-      await EntryRepository.updateEntryStatus(id, newStatus, newCompletedAt);
-      // Actualización inmutable del estado: creamos un nuevo array con la entrada modificada
+      await EntryRepository.deleteEntryById(id);
+      setEntries(prev => prev.filter(entry => entry.id !== id));
+    } catch (e) {
+      console.error('[JournalContext] Error al eliminar entrada:', e);
+    }
+  }, []);
+
+  /**
+   * Actualiza la fecha de una entrada (usado para migración).
+   */
+  const updateEntryDate = useCallback(async (id, newDate) => {
+    try {
+      await EntryRepository.updateEntryDate(id, newDate);
       setEntries(prev =>
-        prev.map(e => e.id === id ? { ...e, status: newStatus, completedAt: newCompletedAt } : e)
+        prev.map(entry => entry.id === id ? { ...entry, date: newDate } : entry)
       );
     } catch (e) {
-      console.error('[JournalContext] Error al cambiar estado de tarea:', e);
+      console.error('[JournalContext] Error al actualizar fecha de entrada:', e);
     }
-  };
+  }, []);
+
+  /**
+   * Actualiza la hora específica ('HH:mm' | null) de una entrada.
+   */
+  const updateEntryTime = useCallback(async (id, newTime) => {
+    try {
+      await EntryRepository.updateEntryTime(id, newTime);
+      setEntries(prev =>
+        prev.map(entry => entry.id === id ? { ...entry, time: newTime } : entry)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al actualizar hora de entrada:', e);
+    }
+  }, []);
+
+  /**
+   * Actualiza la fecha y la hora de una entrada simultáneamente.
+   */
+  const updateEntryDateTime = useCallback(async (id, newDate, newTime) => {
+    try {
+      await EntryRepository.updateEntryDateTime(id, newDate, newTime);
+      setEntries(prev =>
+        prev.map(entry => entry.id === id ? { ...entry, date: newDate, time: newTime } : entry)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al actualizar fecha y hora de entrada:', e);
+    }
+  }, []);
+
+  /**
+   * Persiste el nuevo orden de un subconjunto de entradas dentro de una única transacción.
+   */
+  const reorderEntries = useCallback(async (reorderedSubset) => {
+    const reorderedWithIndexes = reorderedSubset.map((item, index) => ({
+      ...item,
+      order_index: index,
+    }));
+    const reorderedIds = new Set(reorderedWithIndexes.map(e => e.id));
+
+    // Actualización optimista del estado
+    setEntries(prev => {
+      const rest = prev.filter(e => !reorderedIds.has(e.id));
+      return [...rest, ...reorderedWithIndexes];
+    });
+
+    try {
+      await EntryRepository.batchUpdateEntryOrders(reorderedWithIndexes);
+    } catch (e) {
+      console.error('[JournalContext] Error al reordenar entradas:', e);
+    }
+  }, []);
+
+  /**
+   * Alterna el significador purista de una entrada en orden cíclico.
+   */
+  const toggleSignifier = useCallback(async (id) => {
+    setEntries(prev => {
+      const entry = prev.find(e => e.id === id);
+      if (!entry) return prev;
+
+      let nextSignifier = null;
+      if (!entry.signifier) {
+        nextSignifier = 'priority';
+      } else if (entry.signifier === 'priority') {
+        nextSignifier = 'inspiration';
+      } else {
+        nextSignifier = null;
+      }
+
+      EntryRepository.updateEntrySignifier(id, nextSignifier).catch(e => {
+        console.error('[JournalContext] Error al cambiar significador:', e);
+      });
+
+      return prev.map(e => e.id === id ? { ...e, signifier: nextSignifier } : e);
+    });
+  }, []);
+
+  /**
+   * Establece directamente un significador para una entrada.
+   */
+  const setSignifier = useCallback(async (id, signifier) => {
+    try {
+      await EntryRepository.updateEntrySignifier(id, signifier);
+      setEntries(prev =>
+        prev.map(e => e.id === id ? { ...e, signifier } : e)
+      );
+    } catch (e) {
+      console.error('[JournalContext] Error al establecer significador:', e);
+    }
+  }, []);
+
+  const reloadJournalData = useCallback(async () => {
+    try {
+      const [loadedLists, loadedEntries] = await Promise.all([
+        ListRepository.getAllLists(),
+        EntryRepository.getAllEntries(),
+      ]);
+      setLists(loadedLists);
+      setEntries(loadedEntries);
+    } catch (e) {
+      console.error('[JournalContext] Error recargando datos:', e);
+    }
+  }, []);
+
+  const resetJournal = useCallback(() => {
+    setEntries([]);
+    setLists([]);
+  }, []);
+
+  // Objeto de contexto memoizado: evita re-renderizar consumidores innecesariamente
+  const contextValue = useMemo(() => ({
+    entries,
+    addEntry,
+    toggleStatus,
+    toggleSignifier,
+    setSignifier,
+    deleteEntry,
+    updateEntryDate,
+    updateEntryTime,
+    updateEntryDateTime,
+    reorderEntries,
+    lists,
+    addList,
+    reorderLists,
+    deleteList,
+    resetJournal,
+    reloadJournalData,
+  }), [
+    entries,
+    lists,
+    addEntry,
+    toggleStatus,
+    toggleSignifier,
+    setSignifier,
+    deleteEntry,
+    updateEntryDate,
+    updateEntryTime,
+    updateEntryDateTime,
+    reorderEntries,
+    addList,
+    reorderLists,
+    deleteList,
+    resetJournal,
+    reloadJournalData,
+  ]);
 
   // Mientras los datos de SQLite no se han cargado, no renderizamos nada.
   // Esto evita un flash de contenido vacío al arrancar la app.
   if (!isLoaded) return null;
 
   return (
-    <JournalContext.Provider value={{
-      entries,
-      addEntry,
-      toggleStatus,
-      lists,
-      addList,
-      reorderLists,
-      deleteList,
-    }}>
+    <JournalContext.Provider value={contextValue}>
       {children}
     </JournalContext.Provider>
   );

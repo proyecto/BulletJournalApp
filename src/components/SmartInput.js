@@ -1,30 +1,12 @@
 /**
  * @module SmartInput
- * @description Componente de entrada de texto premium reutilizable, diseñado para Android.
- *
- * SOLUCIÓN ARQUITECTÓNICA DE COMPATIBILIDAD CON TECLADO:
- * Para evitar los problemas de clipping y saltos de teclado causados por las alturas
- * fijas y posiciones absolutas de React Navigation en Android, este componente
- * utiliza el patrón de MODAL NATIVO.
- *
- * ¿Cómo funciona?
- * 1. Muestra una barra de entrada "dummy" (falsa) en el layout normal de la pantalla.
- * 2. Al pulsarla, se abre un `<Modal>` nativo y transparente que se superpone a todo.
- * 3. El Modal contiene el `TextInput` real con `autoFocus={true}` para abrir el teclado.
- * 4. Como el Modal se ejecuta en una ventana nativa de Android (`android.app.Dialog`),
- *    el sistema operativo aplica `adjustResize` de forma limpia y aísla el input
- *    del flujo de React Navigation. Esto garantiza que el input suba y se pose
- *    exactamente encima del teclado sin bugs.
- *
- * @prop {string}          value        - El texto del input (controlado por el padre).
- * @prop {Function}        onChangeText - Callback para actualizar el estado del texto.
- * @prop {Function}        onSubmit     - Callback que se ejecuta al enviar.
- * @prop {string}          [placeholder]- Texto de ayuda.
- * @prop {React.ReactNode} [topContent] - Contenido opcional encima del input (ej: selector de tipo).
- * @prop {React.ReactNode} [leftContent]- Contenido opcional a la izquierda del input (ej: calendario).
+ * @description Componente de entrada de texto estilo Bottom Sheet Modal diseñado exclusivamente para Android.
+ * 
+ * Muestra una barra visible en la parte inferior de la pantalla. Al pulsarla, abre un Modal
+ * nativo con fondo atenuado y el input flotando exactamente sobre el teclado virtual.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -33,7 +15,6 @@ import {
   Modal,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
-  Platform,
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,168 +30,167 @@ export default function SmartInput({
   leftContent,
 }) {
   const { theme, language } = useSettings();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef(null);
-  const ignoreKeyboardHideRef = useRef(false);
 
-  /**
-   * Escucha el evento de cierre del teclado nativo.
-   * Si el teclado se oculta (por ejemplo, porque el usuario pulsó el botón
-   * "Atrás" de Android), cerramos automáticamente el modal.
-   * 
-   * Excepción: Si se levantó la bandera `ignoreKeyboardHideRef` (porque el usuario
-   * interactuó con los botones de tipo o el calendario), ignoramos ese cierre
-   * para mantener el modal visible (ya que al abrir diálogos como el datepicker
-   * el teclado se cierra temporalmente).
-   */
+  const handleOpen = () => {
+    setIsOpen(true);
+  };
+
+  const handleClose = useCallback(() => {
+    Keyboard.dismiss();
+    setIsOpen(false);
+  }, []);
+
+  const handleModalShow = () => {
+    // Delay de 60ms para garantizar que el foco nativo se aplique tras el render del Dialog
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 60);
+  };
+
+  const handleSubmit = () => {
+    if (!value?.trim()) return;
+    onSubmit();
+    handleClose();
+  };
+
+  // Cierra automáticamente el modal cuando se oculta el teclado (p.ej. al pulsar el botón atrás de Android)
   useEffect(() => {
-    const hideListener = Keyboard.addListener('keyboardDidHide', () => {
-      if (ignoreKeyboardHideRef.current) {
-        // Consumimos la bandera y la reseteamos para la siguiente interacción
-        ignoreKeyboardHideRef.current = false;
-      } else {
-        // Cierre automático del modal al ocultar el teclado
-        setIsModalOpen(false);
+    if (!isOpen) return;
+
+    let keyboardHasShown = false;
+
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      keyboardHasShown = true;
+    });
+
+    // Margen de seguridad en caso de que el teclado tarde en responder o no emita evento de apertura
+    const safetyTimer = setTimeout(() => {
+      keyboardHasShown = true;
+    }, 400);
+
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      if (keyboardHasShown) {
+        handleClose();
       }
     });
 
     return () => {
-      hideListener.remove();
+      clearTimeout(safetyTimer);
+      showSubscription.remove();
+      hideSubscription.remove();
     };
-  }, []);
+  }, [isOpen, handleClose]);
 
-  /**
-   * Abre el Modal.
-   */
-  const handleOpenInput = () => {
-    setIsModalOpen(true);
-  };
-
-  /**
-   * Cierra el Modal limpiamente.
-   */
-  const handleCloseInput = () => {
-    setIsModalOpen(false);
-  };
-
-  /**
-   * Se ejecuta cuando el Modal nativo ya está totalmente visible y montado.
-   * Usar un pequeño delay de 50ms garantiza que el foco nativo de Android
-   * se registre perfectamente tras el montaje de la nueva ventana de diálogo.
-   */
-  const handleModalShow = () => {
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 50);
-  };
-
-  /**
-   * Ejecuta el envío de datos.
-   * 1. Llama al submit original del padre.
-   * 2. Cierra el modal de inmediato.
-   */
-  const handleSubmit = () => {
-    onSubmit();
-    handleCloseInput();
-  };
+  const defaultPlaceholder = language === 'es' ? 'Escribe aquí...' : 'Type here...';
 
   return (
     <>
-      {/* ─── 1. BARRA DUMMY (Visible en la pantalla principal) ─── */}
+      {/* ─── 1. BARRA VISIBLE EN EL LAYOUT (DUMMY) ─── */}
       <TouchableOpacity
         activeOpacity={0.8}
-        onPress={handleOpenInput}
+        onPress={handleOpen}
         style={[
-          styles.dummyWrapper,
+          styles.dummyContainer,
           {
             backgroundColor: theme.cardBackground,
             borderTopColor: theme.border,
-          }
+          },
         ]}
       >
-        <View style={styles.inputContainer}>
-          {/* Si tiene calendario u otro control izquierdo, lo mostramos como decoración */}
+        {topContent && (
+          <View style={styles.topContentContainer}>
+            {topContent}
+          </View>
+        )}
+
+        <View style={styles.inputRow}>
           {leftContent && (
             <View style={styles.leftContentContainer}>
               {leftContent}
             </View>
           )}
 
-          {/* Caja que simula ser el TextInput (muestra el texto escrito si existe) */}
-          <View style={[styles.textInput, { backgroundColor: theme.inputBackground, justifyContent: 'center' }]}>
-            <Text 
-              style={{ color: value ? theme.text : theme.textSecondary, fontSize: 16 }}
+          <View
+            style={[
+              styles.dummyTextInput,
+              {
+                backgroundColor: theme.inputBackground,
+              },
+            ]}
+          >
+            <Text
+              style={{
+                color: value ? theme.text : theme.textSecondary,
+                fontSize: 16,
+              }}
               numberOfLines={1}
             >
-              {value || placeholder || (language === 'es' ? 'Escribe aquí...' : 'Type here...')}
+              {value || placeholder || defaultPlaceholder}
             </Text>
           </View>
 
-          {/* Botón de enviar dummy (desactivado) */}
-          <View style={[styles.sendButton, { backgroundColor: theme.buttonBackground }]}>
+          <View
+            style={[
+              styles.sendButton,
+              { backgroundColor: theme.buttonBackground },
+            ]}
+          >
             <Ionicons name="arrow-up" size={20} color={theme.cardBackground} />
           </View>
         </View>
       </TouchableOpacity>
 
-      {/* ─── 2. MODAL NATIVO (Superpuesto cuando el usuario pulsa para escribir) ─── */}
+      {/* ─── 2. MODAL NATIVO FLOTANTE SOBRE EL TECLADO ─── */}
       <Modal
-        visible={isModalOpen}
+        testID="smart-input-modal"
+        visible={isOpen}
         transparent={true}
         animationType="fade"
-        onRequestClose={handleCloseInput}
-        onShow={handleModalShow} // ← Invoca el foco cuando el modal termina de mostrarse
+        onRequestClose={handleClose}
+        onShow={handleModalShow}
+        statusBarTranslucent={true}
       >
-        {/* Backdrop (fondo oscuro semi-transparente). Pulsar fuera cierra el input */}
-        <TouchableWithoutFeedback onPress={handleCloseInput}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.modalBackdrop}>
-            
-            {/* Contenedor que evita el teclado (KeyboardAvoidingView nativo) */}
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              behavior="padding"
               style={styles.keyboardAvoidingView}
             >
-              {/* Contenedor del Input Real */}
               <TouchableWithoutFeedback>
-                <View style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: theme.cardBackground,
-                    borderTopColor: theme.border,
-                  }
-                ]}>
-                  {/* Selector de Tipo: levantar bandera ignoreKeyboard al tocar para que no se cierre el modal */}
+                <View
+                  style={[
+                    styles.modalInputCard,
+                    {
+                      backgroundColor: theme.cardBackground,
+                      borderTopColor: theme.border,
+                    },
+                  ]}
+                >
                   {topContent && (
-                    <View 
-                      style={styles.topContentContainer}
-                      onTouchStart={() => { ignoreKeyboardHideRef.current = true; }}
-                    >
+                    <View style={styles.topContentContainer}>
                       {topContent}
                     </View>
                   )}
 
-                  <View style={styles.inputContainer}>
-                    {/* Control Izquierdo: levantar bandera ignoreKeyboard al tocar */}
+                  <View style={styles.inputRow}>
                     {leftContent && (
-                      <View 
-                        style={styles.leftContentContainer}
-                        onTouchStart={() => { ignoreKeyboardHideRef.current = true; }}
-                      >
+                      <View style={styles.leftContentContainer}>
                         {leftContent}
                       </View>
                     )}
 
-                    {/* TextInput Real con Referencia */}
                     <TextInput
-                      ref={inputRef} // ← Asignamos la referencia
+                      ref={inputRef}
                       style={[
                         styles.textInput,
                         {
                           backgroundColor: theme.inputBackground,
                           color: theme.text,
-                        }
+                        },
                       ]}
-                      placeholder={placeholder || (language === 'es' ? 'Escribe aquí...' : 'Type here...')}
+                      placeholder={placeholder || defaultPlaceholder}
                       placeholderTextColor={theme.textSecondary}
                       value={value}
                       onChangeText={onChangeText}
@@ -218,22 +198,29 @@ export default function SmartInput({
                       returnKeyType="send"
                     />
 
-                    {/* Botón de Enviar Real */}
                     <TouchableOpacity
                       style={[
                         styles.sendButton,
-                        { backgroundColor: value.trim() ? theme.text : theme.buttonBackground },
-                        value.trim() ? { elevation: 3 } : null,
+                        {
+                          backgroundColor: value?.trim()
+                            ? theme.text
+                            : theme.buttonBackground,
+                        },
+                        value?.trim() ? { elevation: 3 } : null,
                       ]}
                       onPress={handleSubmit}
-                      disabled={!value.trim()}
+                      disabled={!value?.trim()}
+                      activeOpacity={0.7}
                     >
-                      <Ionicons name="arrow-up" size={20} color={theme.cardBackground} />
+                      <Ionicons
+                        name="arrow-up"
+                        size={20}
+                        color={theme.cardBackground}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
               </TouchableWithoutFeedback>
-
             </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
@@ -242,52 +229,56 @@ export default function SmartInput({
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  /** Barra visible fija en el layout */
-  dummyWrapper: {
+  dummyContainer: {
     borderTopWidth: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
-  /** Fondo oscuro que cubre la pantalla */
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Atenuación de fondo premium
-    justifyContent: 'flex-end', // Empuja el input hacia abajo
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
   },
-  /** Ajusta el contenedor cuando el teclado aparece */
   keyboardAvoidingView: {
     width: '100%',
   },
-  /** Contenedor del input real dentro del modal */
-  inputWrapper: {
+  modalInputCard: {
     borderTopWidth: 1,
     paddingVertical: 12,
-    borderTopLeftRadius: 16, // Esquinas superiores redondeadas para estilo Bottom Sheet
-    borderTopRightRadius: 16,
-    elevation: 10, // Sombra para separarlo del contenido de fondo
-  },
-  /** Fila horizontal */
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   topContentContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 10,
     gap: 8,
   },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   leftContentContainer: {
-    marginRight: 12,
+    marginRight: 10,
+  },
+  dummyTextInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
   },
   textInput: {
     flex: 1,
     height: 44,
     borderRadius: 22,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     fontSize: 16,
   },
   sendButton: {
@@ -296,6 +287,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+    marginLeft: 10,
   },
 });

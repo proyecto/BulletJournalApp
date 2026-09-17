@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { useSettings } from '../context/SettingsContext';
 import { fontOptions } from '../constants/fonts';
+import { TYPOGRAPHY_PRESETS } from '../constants/themes';
 
 const VARIANTS = [
   { id: 'h1', labelEs: 'Título Gigante (H1)', labelEn: 'Giant Title (H1)' },
@@ -22,7 +23,7 @@ const SIZES = [10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 30, 36, 42];
 
 
 export default function AdvancedTypographyScreen({ navigation }) {
-  const { theme, language, typographyConfig, setTypographyConfig } = useSettings();
+  const { theme, language, typographyConfig, setTypographyConfig, applyTypographyPreset, fontFamily } = useSettings();
   const insets = useSafeAreaInsets();
   
   const [activeVariant, setActiveVariant] = useState(null);
@@ -77,6 +78,51 @@ export default function AdvancedTypographyScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderSectionHeader(language === 'es' ? 'PRESETS TIPOGRÁFICOS' : 'TYPOGRAPHY PRESETS')}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.presetsContainer}
+          style={{ marginBottom: 16 }}
+        >
+          {TYPOGRAPHY_PRESETS.map((preset) => {
+            const isCurrent = fontFamily === preset.globalFont;
+            const name = language === 'es' ? preset.name : preset.nameEn;
+            const desc = language === 'es' ? preset.desc : preset.descEn;
+
+            return (
+              <TouchableOpacity
+                key={preset.id}
+                style={[
+                  styles.presetCard,
+                  {
+                    backgroundColor: theme.cardBackground,
+                    borderColor: isCurrent ? theme.primary : theme.border,
+                    borderWidth: isCurrent ? 2 : 1,
+                  },
+                ]}
+                onPress={() => applyTypographyPreset(preset.id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.presetHeader}>
+                  <View style={[styles.presetIconWrap, { backgroundColor: isCurrent ? (theme.primaryBackground || theme.inputBackground) : theme.inputBackground }]}>
+                    <Ionicons name={preset.icon} size={18} color={isCurrent ? theme.primary : theme.textSecondary} />
+                  </View>
+                  {isCurrent && (
+                    <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                  )}
+                </View>
+                <Text variant="body" style={[styles.presetName, { color: theme.text, fontWeight: '700' }]}>
+                  {name}
+                </Text>
+                <Text variant="micro" style={[styles.presetDesc, { color: theme.textSecondary }]}>
+                  {desc}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         {VARIANTS.map(variantItem => {
           const config = typographyConfig[variantItem.id];
           return (
@@ -333,5 +379,11 @@ const styles = StyleSheet.create({
   modalOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   modalOptionText: { fontSize: 16 },
   colorPreview: { width: 16, height: 16, borderRadius: 8, marginRight: 12 },
-  button: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }
+  button: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  presetsContainer: { paddingBottom: 6, paddingHorizontal: 2 },
+  presetCard: { width: 170, borderRadius: 14, padding: 14, marginRight: 10 },
+  presetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  presetIconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  presetName: { fontSize: 14, marginBottom: 4 },
+  presetDesc: { fontSize: 11, lineHeight: 14 },
 });

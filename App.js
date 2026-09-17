@@ -32,18 +32,35 @@ import { SourceCodePro_400Regular, SourceCodePro_500Medium, SourceCodePro_600Sem
 import { Caveat_400Regular, Caveat_500Medium, Caveat_600SemiBold, Caveat_700Bold } from '@expo-google-fonts/caveat';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { DancingScript_400Regular, DancingScript_500Medium, DancingScript_600SemiBold, DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
-import { SettingsProvider } from './src/context/SettingsContext';
+import { SettingsProvider, useSettings } from './src/context/SettingsContext';
+import { StatusBar } from 'expo-status-bar';
+import PinLockModal from './src/components/PinLockModal';
 import { initDB } from './src/database/db';
 
 initDB();
 
 SplashScreen.preventAutoHideAsync();
 
+function MainAppContent() {
+  const { isUnlocked, pinLockEnabled, isDark } = useSettings();
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+      <PinLockModal visible={!isUnlocked && pinLockEnabled} mode="unlock" />
+    </>
+  );
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({
-Inter_400Regular,
+    Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
@@ -153,12 +170,12 @@ Inter_400Regular,
   }
 
   return (
-    <SettingsProvider>
-      <JournalProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-      </JournalProvider>
-    </SettingsProvider>
+    <SafeAreaProvider>
+      <SettingsProvider>
+        <JournalProvider>
+          <MainAppContent />
+        </JournalProvider>
+      </SettingsProvider>
+    </SafeAreaProvider>
   );
 }

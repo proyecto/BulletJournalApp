@@ -13,52 +13,40 @@
  * evitando cálculos innecesarios en cada render.
  */
 
-import React, { createContext, useState, useContext, useMemo, useEffect } from 'react';
+import React, { createContext, useState, useContext, useMemo, useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import * as SettingsRepository from '../repositories/SettingsRepository';
+import {
+  lightTheme,
+  darkTheme,
+  sepiaTheme,
+  obsidianTheme,
+  thingsTheme,
+  nordTheme,
+  matchaTheme,
+  asanaTheme,
+  todoistTheme,
+  trelloTheme,
+  THEMES_MAP,
+  themeOptions,
+  TYPOGRAPHY_PRESETS,
+} from '../constants/themes';
 
-// ─── Definición de Temas ─────────────────────────────────────────────────────
-
-/**
- * Tema claro de la aplicación.
- * Todos los colores de la app deben consumirse de aquí (via `theme.xxx`)
- * para garantizar la consistencia visual y el soporte de modo oscuro.
- */
-export const lightTheme = {
-  background:       '#F7F9FC',
-  cardBackground:   '#FFFFFF',
-  cardCompleted:    '#F9F9F9',
-  text:             '#1A1A1A',
-  textSecondary:    '#8E8E93',
-  textCompleted:    '#A0A0A0',
-  border:           '#F0F0F0',
-  primary:          '#007AFF',
-  primaryBackground:'#E6F4FE',
-  tabBar:           '#FFFFFF',
-  inputBackground:  '#F2F2F7',
-  iconInactive:     '#666',
-  buttonBackground: '#D1D1D6',
-};
-
-/**
- * Tema oscuro de la aplicación.
- * Tiene exactamente las mismas claves que `lightTheme` para que los componentes
- * puedan intercambiarlo sin necesidad de lógica condicional en la UI.
- */
-export const darkTheme = {
-  background:       '#000000',
-  cardBackground:   '#1C1C1E',
-  cardCompleted:    '#121212',
-  text:             '#FFFFFF',
-  textSecondary:    '#EBEBF5',
-  textCompleted:    '#636366',
-  border:           '#38383A',
-  primary:          '#0A84FF',
-  primaryBackground:'#002E5C',
-  tabBar:           '#1C1C1E',
-  inputBackground:  '#2C2C2E',
-  iconInactive:     '#999',
-  buttonBackground: '#3A3A3C',
+// ─── Re-exportación de Temas ─────────────────────────────────────────────────
+export {
+  lightTheme,
+  darkTheme,
+  sepiaTheme,
+  obsidianTheme,
+  thingsTheme,
+  nordTheme,
+  matchaTheme,
+  asanaTheme,
+  todoistTheme,
+  trelloTheme,
+  THEMES_MAP,
+  themeOptions,
+  TYPOGRAPHY_PRESETS,
 };
 
 // ─── Contexto ─────────────────────────────────────────────────────────────────
@@ -86,6 +74,8 @@ export function SettingsProvider({ children }) {
   const [language, setLanguageState] = useState('es');
   /** @type {string} Identificador IANA de timezone (ej: 'Europe/Madrid') */
   const [timezone, setTimezoneState] = useState('Europe/Madrid');
+  /** @type {'monday'|'sunday'} Primer día de la semana */
+  const [firstDayOfWeek, setFirstDayOfWeekState] = useState('monday');
   /** @type {string} Familia tipográfica global ('system'|'inter'|'lora'|'jetbrains') */
   const [fontFamily, setFontFamilyState] = useState('system');
   /** @type {Object} Configuración detallada de variantes tipográficas (h1, body, etc.) */
@@ -97,6 +87,16 @@ export function SettingsProvider({ children }) {
     caption: { fontFamily: null, fontSize: 13, fontWeight: '600', color: null },
     micro:   { fontFamily: null, fontSize: 12, fontWeight: '400', color: null },
   });
+
+  /** @type {boolean} Si la fuente recomendada del tema se sincroniza al cambiar de tema */
+  const [syncThemeFont, setSyncThemeFontState] = useState(true);
+
+  /** @type {boolean} Si el bloqueo por PIN está activado */
+  const [pinLockEnabled, setPinLockEnabledState] = useState(false);
+  /** @type {string|null} Código PIN numérico de 4 dígitos */
+  const [pinCode, setPinCodeState] = useState(null);
+  /** @type {boolean} Estado de sesión actual (true = desbloqueada, false = requiere PIN) */
+  const [isUnlocked, setIsUnlockedState] = useState(true);
 
   /**
    * Carga inicial de todas las preferencias guardadas desde SQLite.
@@ -111,7 +111,23 @@ export function SettingsProvider({ children }) {
         if (settings.themePreference) setThemePreferenceState(settings.themePreference);
         if (settings.language)        setLanguageState(settings.language);
         if (settings.timezone)        setTimezoneState(settings.timezone);
+        if (settings.firstDayOfWeek)  setFirstDayOfWeekState(settings.firstDayOfWeek);
         if (settings.fontFamily)      setFontFamilyState(settings.fontFamily);
+        if (settings.pinCode)         setPinCodeState(settings.pinCode);
+
+        if (settings.syncThemeFont !== undefined) {
+          const isSync = settings.syncThemeFont === 'true' || settings.syncThemeFont === true;
+          setSyncThemeFontState(isSync);
+        }
+
+        if (settings.pinLockEnabled !== undefined) {
+          const isEnabled = settings.pinLockEnabled === 'true' || settings.pinLockEnabled === true;
+          setPinLockEnabledState(isEnabled);
+          if (isEnabled && settings.pinCode) {
+            setIsUnlockedState(false); // Requiere PIN al arrancar si está activado
+          }
+        }
+
         if (settings.typographyConfig) {
           // typographyConfig es un objeto complejo serializado como JSON string
           setTypographyConfigState(JSON.parse(settings.typographyConfig));
@@ -132,75 +148,197 @@ export function SettingsProvider({ children }) {
    * Si en el futuro la persistencia cambia (ej: a una API REST), solo se cambia aquí.
    */
 
-  /** Actualiza la preferencia de tema y la persiste. */
-  const setThemePreference = (val) => {
+  /** Actualiza la preferencia de tema y la persiste, sincronizando la fuente si está activado. */
+  const setThemePreference = useCallback((val) => {
     setThemePreferenceState(val);
     SettingsRepository.saveSetting('themePreference', val);
-  };
+    if (syncThemeFont) {
+      const themeObj = THEMES_MAP[val];
+      if (themeObj && themeObj.recommendedFont) {
+        setFontFamilyState(themeObj.recommendedFont);
+        SettingsRepository.saveSetting('fontFamily', themeObj.recommendedFont);
+      }
+    }
+  }, [syncThemeFont]);
+
+  /** Activa o desactiva la sincronización de la fuente recomendada con el tema. */
+  const setSyncThemeFont = useCallback((val) => {
+    setSyncThemeFontState(val);
+    SettingsRepository.saveSetting('syncThemeFont', val ? 'true' : 'false');
+  }, []);
 
   /** Actualiza el idioma de la interfaz y lo persiste. */
-  const setLanguage = (val) => {
+  const setLanguage = useCallback((val) => {
     setLanguageState(val);
     SettingsRepository.saveSetting('language', val);
-  };
+  }, []);
 
   /** Actualiza el timezone y lo persiste. */
-  const setTimezone = (val) => {
+  const setTimezone = useCallback((val) => {
     setTimezoneState(val);
     SettingsRepository.saveSetting('timezone', val);
-  };
+  }, []);
+
+  /** Actualiza el primer día de la semana ('monday' | 'sunday') y lo persiste. */
+  const setFirstDayOfWeek = useCallback((val) => {
+    setFirstDayOfWeekState(val);
+    SettingsRepository.saveSetting('firstDayOfWeek', val);
+  }, []);
+
+  /** Configura un nuevo PIN de 4 dígitos y activa el bloqueo. */
+  const setupPin = useCallback((code) => {
+    setPinCodeState(code);
+    setPinLockEnabledState(true);
+    setIsUnlockedState(true);
+    SettingsRepository.saveSetting('pinCode', code);
+    SettingsRepository.saveSetting('pinLockEnabled', 'true');
+  }, []);
+
+  /** Elimina el PIN y desactiva el bloqueo. */
+  const removePin = useCallback(() => {
+    setPinCodeState(null);
+    setPinLockEnabledState(false);
+    setIsUnlockedState(true);
+    SettingsRepository.saveSetting('pinCode', '');
+    SettingsRepository.saveSetting('pinLockEnabled', 'false');
+  }, []);
+
+  /** Comprueba el PIN introducido y desbloquea si es correcto. */
+  const verifyPin = useCallback((enteredCode) => {
+    if (enteredCode === pinCode) {
+      setIsUnlockedState(true);
+      return true;
+    }
+    return false;
+  }, [pinCode]);
+
+  /** Bloquea manualmente la sesión de la aplicación. */
+  const lockApp = useCallback(() => {
+    if (pinLockEnabled && pinCode) {
+      setIsUnlockedState(false);
+    }
+  }, [pinLockEnabled, pinCode]);
 
   /** Actualiza la familia tipográfica global y la persiste. */
-  const setFontFamily = (val) => {
+  const setFontFamily = useCallback((val) => {
     setFontFamilyState(val);
     SettingsRepository.saveSetting('fontFamily', val);
-  };
+  }, []);
 
   /**
    * Actualiza la configuración tipográfica detallada y la persiste como JSON.
-   * Acepta tanto un valor directo como una función actualizadora (como `setState`).
-   * @param {Object|Function} val - El nuevo config o una función (prev) => newConfig.
    */
-  const setTypographyConfig = (val) => {
+  const setTypographyConfig = useCallback((val) => {
     setTypographyConfigState(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
       SettingsRepository.saveSetting('typographyConfig', next);
       return next;
     });
-  };
+  }, []);
+
+  /**
+   * Aplica un preset tipográfico completo (fuente global y variantes h1..micro).
+   */
+  const applyTypographyPreset = useCallback((presetId) => {
+    const preset = TYPOGRAPHY_PRESETS.find(p => p.id === presetId);
+    if (!preset) return;
+    if (preset.globalFont) {
+      setFontFamilyState(preset.globalFont);
+      SettingsRepository.saveSetting('fontFamily', preset.globalFont);
+    }
+    if (preset.config) {
+      setTypographyConfigState(preset.config);
+      SettingsRepository.saveSetting('typographyConfig', preset.config);
+    }
+  }, []);
 
   // ── Tema Activo (Memoization) ─────────────────────────────────────────────────
 
-  /**
-   * Calcula el tema activo basándose en la preferencia del usuario y el scheme del sistema.
-   * `useMemo` garantiza que este cálculo solo se repite cuando alguna de sus
-   * dependencias cambia, no en cada render.
-   */
   const activeTheme = useMemo(() => {
     if (themePreference === 'system') {
       return systemColorScheme === 'dark' ? darkTheme : lightTheme;
     }
-    return themePreference === 'dark' ? darkTheme : lightTheme;
+    return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : lightTheme);
   }, [themePreference, systemColorScheme]);
+
+  const resetSettings = useCallback(() => {
+    setThemePreferenceState('system');
+    setLanguageState('es');
+    setTimezoneState('Europe/Madrid');
+    setFirstDayOfWeekState('monday');
+    setPinLockEnabledState(false);
+    setPinCodeState(null);
+    setIsUnlockedState(true);
+    setFontFamilyState('system');
+    setSyncThemeFontState(true);
+    setTypographyConfigState({
+      h1:      { fontFamily: null, fontSize: 30, fontWeight: '800', color: null },
+      h2:      { fontFamily: null, fontSize: 24, fontWeight: '800', color: null },
+      h3:      { fontFamily: null, fontSize: 20, fontWeight: '700', color: null },
+      body:    { fontFamily: null, fontSize: 16, fontWeight: '500', color: null },
+      caption: { fontFamily: null, fontSize: 13, fontWeight: '600', color: null },
+      micro:   { fontFamily: null, fontSize: 12, fontWeight: '400', color: null },
+    });
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    themePreference,
+    setThemePreference,
+    language,
+    setLanguage,
+    timezone,
+    setTimezone,
+    firstDayOfWeek,
+    setFirstDayOfWeek,
+    pinLockEnabled,
+    pinCode,
+    isUnlocked,
+    setupPin,
+    removePin,
+    verifyPin,
+    lockApp,
+    fontFamily,
+    setFontFamily,
+    syncThemeFont,
+    setSyncThemeFont,
+    typographyConfig,
+    setTypographyConfig,
+    applyTypographyPreset,
+    resetSettings,
+    theme: activeTheme,
+    isDark: Boolean(activeTheme?.isDark),
+  }), [
+    themePreference,
+    setThemePreference,
+    language,
+    setLanguage,
+    timezone,
+    setTimezone,
+    firstDayOfWeek,
+    setFirstDayOfWeek,
+    pinLockEnabled,
+    pinCode,
+    isUnlocked,
+    setupPin,
+    removePin,
+    verifyPin,
+    lockApp,
+    fontFamily,
+    setFontFamily,
+    syncThemeFont,
+    setSyncThemeFont,
+    typographyConfig,
+    setTypographyConfig,
+    applyTypographyPreset,
+    resetSettings,
+    activeTheme,
+  ]);
 
   // Esperamos a tener los datos cargados antes de renderizar
   if (!isLoaded) return null;
 
   return (
-    <SettingsContext.Provider value={{
-      themePreference,
-      setThemePreference,
-      language,
-      setLanguage,
-      timezone,
-      setTimezone,
-      fontFamily,
-      setFontFamily,
-      typographyConfig,
-      setTypographyConfig,
-      theme: activeTheme,
-      isDark: activeTheme === darkTheme,
-    }}>
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );

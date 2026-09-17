@@ -15,14 +15,14 @@
  * Este repositorio gestiona exclusivamente la tabla `entries`.
  */
 
-import db from '../database/db';
+import db, { runInTransaction } from '../database/db';
 
 /**
- * Obtiene todas las entradas de la base de datos.
- * @returns {Promise<Array<Object>>} Un array de objetos entry.
+ * Obtiene todas las entradas de la base de datos ordenadas por order_index.
+ * @returns {Promise<Array<Object>>} Un array de objetos entry ordenados.
  */
 export const getAllEntries = async () => {
-  return await db.getAllAsync('SELECT * FROM entries');
+  return await db.getAllAsync('SELECT * FROM entries ORDER BY order_index ASC, id ASC');
 };
 
 /**
@@ -35,11 +35,13 @@ export const getAllEntries = async () => {
  * @param {string} entry.date - Fecha en formato 'YYYY-MM-DD'. OBLIGATORIO.
  * @param {string|null} entry.completedAt - Fecha de completado o null.
  * @param {string|null} entry.listId - ID de la lista padre o null.
+ * @param {number} [entry.order_index] - Posición en el orden de entradas.
+ * @param {string|null} [entry.signifier] - Significador purista ('priority' | 'inspiration' | null).
  * @returns {Promise<void>}
  */
 export const insertEntry = async (entry) => {
   await db.runAsync(
-    'INSERT INTO entries (id, text, type, status, date, completedAt, listId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index, signifier, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       entry.id,
       entry.text,
@@ -48,7 +50,63 @@ export const insertEntry = async (entry) => {
       entry.date,       // Este campo causaba el error NOT NULL antes de la Factory
       entry.completedAt ?? null,
       entry.listId ?? null,
+      entry.order_index ?? 0,
+      entry.signifier ?? null,
+      entry.time ?? null,
     ]
+  );
+};
+
+/**
+ * Actualiza el significador purista (* prioridad / ! inspiración) de una entrada.
+ * @param {string} id - ID de la entrada a actualizar.
+ * @param {string|null} newSignifier - El nuevo significador ('priority' | 'inspiration' | null).
+ * @returns {Promise<void>}
+ */
+export const updateEntrySignifier = async (id, newSignifier) => {
+  await db.runAsync(
+    'UPDATE entries SET signifier = ? WHERE id = ?',
+    [newSignifier ?? null, id]
+  );
+};
+
+/**
+ * Actualiza la hora específica ('HH:mm' | null) de una entrada.
+ * @param {string} id - ID de la entrada.
+ * @param {string|null} newTime - La nueva hora en formato 'HH:mm' o null.
+ * @returns {Promise<void>}
+ */
+export const updateEntryTime = async (id, newTime) => {
+  await db.runAsync(
+    'UPDATE entries SET time = ? WHERE id = ?',
+    [newTime ?? null, id]
+  );
+};
+
+/**
+ * Actualiza la fecha y hora de una entrada simultáneamente.
+ * @param {string} id - ID de la entrada.
+ * @param {string} newDate - La nueva fecha ('YYYY-MM-DD').
+ * @param {string|null} newTime - La nueva hora ('HH:mm' | null).
+ * @returns {Promise<void>}
+ */
+export const updateEntryDateTime = async (id, newDate, newTime) => {
+  await db.runAsync(
+    'UPDATE entries SET date = ?, time = ? WHERE id = ?',
+    [newDate, newTime ?? null, id]
+  );
+};
+
+/**
+ * Actualiza el order_index de una entrada.
+ * @param {string} id - ID de la entrada a actualizar.
+ * @param {number} newIndex - El nuevo índice de orden.
+ * @returns {Promise<void>}
+ */
+export const updateEntryOrder = async (id, newIndex) => {
+  await db.runAsync(
+    'UPDATE entries SET order_index = ? WHERE id = ?',
+    [newIndex, id]
   );
 };
 
@@ -76,4 +134,73 @@ export const updateEntryStatus = async (id, newStatus, newCompletedAt) => {
  */
 export const deleteEntriesByListId = async (listId) => {
   await db.runAsync('DELETE FROM entries WHERE listId = ?', [listId]);
+};
+
+/**
+ * Elimina una única entrada por su ID.
+ * @param {string} id - ID de la entrada a eliminar.
+ * @returns {Promise<void>}
+ */
+export const deleteEntryById = async (id) => {
+  await db.runAsync('DELETE FROM entries WHERE id = ?', [id]);
+};
+
+/**
+ * Actualiza la fecha de una entrada.
+ * Se usa para migrar tareas (ej: mover una tarea del mes a un día concreto).
+ * @param {string} id - ID de la entrada.
+ * @param {string} newDate - La nueva fecha en formato 'YYYY-MM-DD' o 'YYYY-MM'.
+ * @returns {Promise<void>}
+ */
+export const updateEntryDate = async (id, newDate) => {
+  await db.runAsync(
+    'UPDATE entries SET date = ? WHERE id = ?',
+    [newDate, id]
+  );
+};
+
+/**
+ * Actualiza el orden de múltiples entradas dentro de una única transacción atómica.
+ * Reemplaza bucles secuenciales lentos por una operación atómica en SQLite.
+ * @param {Array<{id: string, order_index?: number}>} entriesWithNewOrder - Array de entradas ordenadas.
+ * @returns {Promise<void>}
+ */
+export const batchUpdateEntryOrders = async (entriesWithNewOrder) => {
+  if (!entriesWithNewOrder || entriesWithNewOrder.length === 0) return;
+  await runInTransaction(async () => {
+    for (let i = 0; i < entriesWithNewOrder.length; i++) {
+      const item = entriesWithNewOrder[i];
+      const newIndex = item.order_index !== undefined ? item.order_index : i;
+      await db.runAsync('UPDATE entries SET order_index = ? WHERE id = ?', [newIndex, item.id]);
+    }
+  });
+};
+
+/**
+ * Inserta múltiples entradas dentro de una única transacción atómica.
+ * Esencial para importaciones rápidas de copias de seguridad.
+ * @param {Array<Object>} entries - Array de objetos entrada.
+ * @returns {Promise<void>}
+ */
+export const batchInsertEntries = async (entries) => {
+  if (!entries || entries.length === 0) return;
+  await runInTransaction(async () => {
+    for (const entry of entries) {
+      await db.runAsync(
+        'INSERT INTO entries (id, text, type, status, date, completedAt, listId, order_index, signifier, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          entry.id,
+          entry.text,
+          entry.type,
+          entry.status,
+          entry.date,
+          entry.completedAt ?? null,
+          entry.listId ?? null,
+          entry.order_index ?? 0,
+          entry.signifier ?? null,
+          entry.time ?? null,
+        ]
+      );
+    }
+  });
 };
