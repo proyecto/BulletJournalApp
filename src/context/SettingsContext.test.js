@@ -10,6 +10,9 @@ import {
   thingsTheme,
   nordTheme,
   matchaTheme,
+  asanaTheme,
+  todoistTheme,
+  trelloTheme,
 } from './SettingsContext';
 import * as SettingsRepository from '../repositories/SettingsRepository';
 
@@ -110,6 +113,33 @@ describe('SettingsContext', () => {
     expect(result.current.theme).toEqual(matchaTheme);
     expect(result.current.isDark).toBe(false);
     expect(result.current.fontFamily).toBe('quicksand');
+
+    // 6. Coral Dinámico (Asana)
+    await act(async () => {
+      result.current.setThemePreference('asana');
+    });
+    expect(result.current.themePreference).toBe('asana');
+    expect(result.current.theme).toEqual(asanaTheme);
+    expect(result.current.isDark).toBe(false);
+    expect(result.current.fontFamily).toBe('rubik');
+
+    // 7. Rubí Enfoque (Todoist)
+    await act(async () => {
+      result.current.setThemePreference('todoist');
+    });
+    expect(result.current.themePreference).toBe('todoist');
+    expect(result.current.theme).toEqual(todoistTheme);
+    expect(result.current.isDark).toBe(false);
+    expect(result.current.fontFamily).toBe('lato');
+
+    // 8. Azul Tablero (Trello)
+    await act(async () => {
+      result.current.setThemePreference('trello');
+    });
+    expect(result.current.themePreference).toBe('trello');
+    expect(result.current.theme).toEqual(trelloTheme);
+    expect(result.current.isDark).toBe(false);
+    expect(result.current.fontFamily).toBe('ubuntu');
   });
 
   it('respects syncThemeFont toggle when switching themes', async () => {
