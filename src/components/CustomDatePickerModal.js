@@ -128,6 +128,12 @@ function WheelColumn({ items, value, onChange, theme }) {
   );
 }
 
+const DAY_NAMES_ES_MON = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const DAY_NAMES_EN_MON = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+const DAY_NAMES_ES_SUN = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const DAY_NAMES_EN_SUN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
 export default function CustomDatePickerModal({
   visible,
   selectedDate,
@@ -135,7 +141,7 @@ export default function CustomDatePickerModal({
   onSelectDate,
   onClose,
 }) {
-  const { theme, language, timezone } = useSettings();
+  const { theme, language, timezone, firstDayOfWeek = 'monday' } = useSettings();
   const insets = useSafeAreaInsets();
 
   // Función segura para parsear cadenas 'YYYY-MM-DD' o Date objects sin desfase de huso horario
@@ -234,9 +240,14 @@ export default function CustomDatePickerModal({
 
     // Primer día del mes
     const firstDay = new Date(year, month, 1);
-    // Día de la semana en formato ISO (0 = Lunes, 6 = Domingo)
-    let startDayOfWeek = firstDay.getDay() - 1;
-    if (startDayOfWeek === -1) startDayOfWeek = 6;
+    
+    let startDayOfWeek = 0;
+    if (firstDayOfWeek === 'sunday') {
+      startDayOfWeek = firstDay.getDay(); // 0 = Domingo, 1 = Lunes ...
+    } else {
+      startDayOfWeek = firstDay.getDay() - 1;
+      if (startDayOfWeek === -1) startDayOfWeek = 6;
+    }
 
     // Total de días en el mes actual
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -280,7 +291,7 @@ export default function CustomDatePickerModal({
     }
 
     return cells;
-  }, [viewingMonth, timezone]);
+  }, [viewingMonth, timezone, firstDayOfWeek]);
 
   const handleSelectShortcut = (date) => {
     setTempDate(date);
@@ -300,7 +311,9 @@ export default function CustomDatePickerModal({
   };
 
   const monthNames = language === 'es' ? MONTH_NAMES_ES : MONTH_NAMES_EN;
-  const dayHeaders = language === 'es' ? DAY_NAMES_ES : DAY_NAMES_EN;
+  const dayHeaders = firstDayOfWeek === 'sunday'
+    ? (language === 'es' ? DAY_NAMES_ES_SUN : DAY_NAMES_EN_SUN)
+    : (language === 'es' ? DAY_NAMES_ES_MON : DAY_NAMES_EN_MON);
 
   return (
     <Modal

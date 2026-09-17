@@ -46,9 +46,16 @@ describe('dateUtils', () => {
       expect(range.endStr).toBe('2026-09-20');   // Sunday
     });
 
+    it('calculates correct Sunday to Saturday date range when firstDayOfWeek is sunday', () => {
+      const wednesday = new Date(2026, 8, 16); // Sep 16, 2026 (Wednesday)
+      const range = getWeekRange(wednesday, 'system', 'sunday');
+      expect(range.startStr).toBe('2026-09-13'); // Sunday
+      expect(range.endStr).toBe('2026-09-19');   // Saturday
+    });
+
     it('calculates correct Monday to Sunday date range when given a Sunday', () => {
       const sunday = new Date(2026, 8, 20); // Sep 20, 2026 (Sunday)
-      const range = getWeekRange(sunday, 'system');
+      const range = getWeekRange(sunday, 'system', 'monday');
       expect(range.startStr).toBe('2026-09-14');
       expect(range.endStr).toBe('2026-09-20');
     });

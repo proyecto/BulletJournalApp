@@ -227,7 +227,7 @@ export default function DailyLogScreen({ navigation }) {
    */
   const getLogSubtitle = () => {
     if (logMode === 'week') {
-      return getFormattedWeekSubtitle(currentLogDate, language);
+      return getFormattedWeekSubtitle(currentLogDate, language, firstDayOfWeek);
     }
     if (logMode === 'month') {
       return getFormattedMonthSubtitle(currentLogDate, language);

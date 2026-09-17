@@ -46,30 +46,37 @@ export const getFormattedDate = (date, timezone = 'system') => {
 };
 
 /**
- * Devuelve el rango de fechas (lunes a domingo) para la fecha dada.
+ * Devuelve el rango de fechas para la semana dada.
  *
  * @param {Date|string} dateInput - Fecha base.
  * @param {string} [timezone='system'] - Timezone IANA.
+ * @param {string} [firstDayOfWeek='monday'] - 'monday' | 'sunday'
  * @returns {{ startStr: string, endStr: string, startDate: Date, endDate: Date }}
  */
-export const getWeekRange = (dateInput, timezone = 'system') => {
+export const getWeekRange = (dateInput, timezone = 'system', firstDayOfWeek = 'monday') => {
   const d = new Date(dateInput);
-  const day = d.getDay();
-  const diffToMonday = (day === 0 ? -6 : 1 - day);
-  
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
 
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  let startDiff = 0;
+  if (firstDayOfWeek === 'sunday') {
+    startDiff = -day;
+  } else {
+    startDiff = (day === 0 ? -6 : 1 - day);
+  }
+
+  const startDate = new Date(d);
+  startDate.setDate(d.getDate() + startDiff);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+  endDate.setHours(23, 59, 59, 999);
 
   return {
-    startStr: getFormattedDate(monday, timezone),
-    endStr: getFormattedDate(sunday, timezone),
-    startDate: monday,
-    endDate: sunday,
+    startStr: getFormattedDate(startDate, timezone),
+    endStr: getFormattedDate(endDate, timezone),
+    startDate,
+    endDate,
   };
 };
 
@@ -78,10 +85,11 @@ export const getWeekRange = (dateInput, timezone = 'system') => {
  *
  * @param {Date} date - Fecha base.
  * @param {string} [language='es'] - 'es' | 'en'
+ * @param {string} [firstDayOfWeek='monday'] - 'monday' | 'sunday'
  * @returns {string} Ej: "14 sep - 20 sep 2026" / "Sep 14 - Sep 20, 2026"
  */
-export const getFormattedWeekSubtitle = (date, language = 'es') => {
-  const { startDate, endDate } = getWeekRange(date);
+export const getFormattedWeekSubtitle = (date, language = 'es', firstDayOfWeek = 'monday') => {
+  const { startDate, endDate } = getWeekRange(date, 'system', firstDayOfWeek);
   const locale = language === 'es' ? 'es-ES' : 'en-US';
   
   const startDay = startDate.getDate();

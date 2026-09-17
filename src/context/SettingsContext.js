@@ -86,6 +86,8 @@ export function SettingsProvider({ children }) {
   const [language, setLanguageState] = useState('es');
   /** @type {string} Identificador IANA de timezone (ej: 'Europe/Madrid') */
   const [timezone, setTimezoneState] = useState('Europe/Madrid');
+  /** @type {'monday'|'sunday'} Primer día de la semana */
+  const [firstDayOfWeek, setFirstDayOfWeekState] = useState('monday');
   /** @type {string} Familia tipográfica global ('system'|'inter'|'lora'|'jetbrains') */
   const [fontFamily, setFontFamilyState] = useState('system');
   /** @type {Object} Configuración detallada de variantes tipográficas (h1, body, etc.) */
@@ -111,6 +113,7 @@ export function SettingsProvider({ children }) {
         if (settings.themePreference) setThemePreferenceState(settings.themePreference);
         if (settings.language)        setLanguageState(settings.language);
         if (settings.timezone)        setTimezoneState(settings.timezone);
+        if (settings.firstDayOfWeek)  setFirstDayOfWeekState(settings.firstDayOfWeek);
         if (settings.fontFamily)      setFontFamilyState(settings.fontFamily);
         if (settings.typographyConfig) {
           // typographyConfig es un objeto complejo serializado como JSON string
@@ -150,6 +153,12 @@ export function SettingsProvider({ children }) {
     SettingsRepository.saveSetting('timezone', val);
   };
 
+  /** Actualiza el primer día de la semana ('monday' | 'sunday') y lo persiste. */
+  const setFirstDayOfWeek = (val) => {
+    setFirstDayOfWeekState(val);
+    SettingsRepository.saveSetting('firstDayOfWeek', val);
+  };
+
   /** Actualiza la familia tipográfica global y la persiste. */
   const setFontFamily = (val) => {
     setFontFamilyState(val);
@@ -187,6 +196,7 @@ export function SettingsProvider({ children }) {
     setThemePreferenceState('system');
     setLanguageState('es');
     setTimezoneState('Europe/Madrid');
+    setFirstDayOfWeekState('monday');
     setFontFamilyState('system');
     setTypographyConfigState({
       h1:      { fontFamily: null, fontSize: 30, fontWeight: '800', color: null },
@@ -209,6 +219,8 @@ export function SettingsProvider({ children }) {
       setLanguage,
       timezone,
       setTimezone,
+      firstDayOfWeek,
+      setFirstDayOfWeek,
       fontFamily,
       setFontFamily,
       typographyConfig,

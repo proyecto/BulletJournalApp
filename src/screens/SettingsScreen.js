@@ -11,10 +11,10 @@ import { fontOptions } from '../constants/fonts';
 import { exportToMarkdown, exportToJSON, importFromJSON } from '../services/ExportImportService';
 
 export default function SettingsScreen({ navigation }) {
-  const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone, fontFamily, setFontFamily, resetSettings } = useSettings();
+  const { theme, themePreference, setThemePreference, language, setLanguage, timezone, setTimezone, firstDayOfWeek, setFirstDayOfWeek, fontFamily, setFontFamily, resetSettings } = useSettings();
   const { entries, lists, resetJournal, reloadJournalData } = useJournal();
   const insets = useSafeAreaInsets();
-  
+
   const [isFontModalVisible, setFontModalVisible] = useState(false);
 
   const currentFontLabel = fontOptions.find(f => f.id === fontFamily)?.label || fontOptions[0].label;
@@ -141,6 +141,12 @@ export default function SettingsScreen({ navigation }) {
         <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
           {renderOption('Español', language === 'es', () => setLanguage('es'), 'language-outline')}
           {renderOption('English', language === 'en', () => setLanguage('en'), 'language-outline')}
+        </View>
+
+        {renderSectionHeader(language === 'es' ? 'PRIMER DÍA DE LA SEMANA' : 'FIRST DAY OF THE WEEK')}
+        <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+          {renderOption(language === 'es' ? 'Lunes (por defecto)' : 'Monday (Default)', firstDayOfWeek === 'monday', () => setFirstDayOfWeek('monday'), 'calendar-outline')}
+          {renderOption(language === 'es' ? 'Domingo' : 'Sunday', firstDayOfWeek === 'sunday', () => setFirstDayOfWeek('sunday'), 'calendar-number-outline')}
         </View>
 
         {renderSectionHeader(language === 'es' ? 'TIPOGRAFÍA' : 'TYPOGRAPHY')}
