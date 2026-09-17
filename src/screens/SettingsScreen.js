@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,8 +35,28 @@ export default function SettingsScreen({ navigation }) {
   const [isFontModalVisible, setFontModalVisible] = useState(false);
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinModalMode, setPinModalMode] = useState('setup');
+  const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
 
   const currentFontLabel = fontOptions.find(f => f.id === fontFamily)?.label || fontOptions[0].label;
+  const currentThemeOption = themeOptions.find(opt => opt.id === themePreference) || themeOptions[0];
+
+  const toggleThemeDropdown = () => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    if (typeof LayoutAnimation?.configureNext === 'function') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setIsThemeDropdownOpen(prev => !prev);
+  };
+
+  const handleSelectTheme = (themeId) => {
+    setThemePreference(themeId);
+    if (typeof LayoutAnimation?.configureNext === 'function') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setIsThemeDropdownOpen(false);
+  };
 
   const handleExportMarkdown = async () => {
     try {
@@ -149,8 +169,9 @@ export default function SettingsScreen({ navigation }) {
             borderBottomColor: theme.border,
             borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
           },
+          isSelected && { backgroundColor: theme.primaryBackground || theme.inputBackground },
         ]}
-        onPress={() => setThemePreference(item.id)}
+        onPress={() => handleSelectTheme(item.id)}
         activeOpacity={0.7}
       >
         <View style={styles.themeOptionLeft}>
@@ -247,7 +268,93 @@ export default function SettingsScreen({ navigation }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {renderSectionHeader(language === 'es' ? 'APARIENCIA' : 'APPEARANCE')}
         <View style={[styles.cardGroup, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-          {themeOptions.map((opt, index) => renderThemeOption(opt, index === themeOptions.length - 1))}
+          {/* Cabecera interactiva del desplegable con el tema actualmente activo */}
+          <TouchableOpacity
+            style={[
+              styles.themeDropdownTrigger,
+              {
+                backgroundColor: theme.cardBackground,
+                borderBottomColor: theme.border,
+                borderBottomWidth: isThemeDropdownOpen ? StyleSheet.hairlineWidth : 0,
+              },
+            ]}
+            onPress={toggleThemeDropdown}
+            activeOpacity={0.7}
+          >
+            <View style={styles.themeOptionLeft}>
+              <View
+                style={[
+                  styles.themeIconContainer,
+                  {
+                    backgroundColor: theme.primaryBackground || theme.inputBackground,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={currentThemeOption.icon}
+                  size={18}
+                  color={theme.primary}
+                />
+              </View>
+              <View style={styles.themeInfoContainer}>
+                <View style={styles.themeTitleRow}>
+                  <RNText
+                    style={[
+                      styles.themeName,
+                      { color: theme.text, fontWeight: '700' },
+                      currentThemeOption.fontStyle,
+                    ]}
+                  >
+                    {language === 'es' ? currentThemeOption.name : currentThemeOption.nameEn}
+                  </RNText>
+                  {currentThemeOption.recommendedFontLabel && currentThemeOption.id !== 'system' && currentThemeOption.id !== 'light' && currentThemeOption.id !== 'dark' && (
+                    <View style={[styles.fontBadge, { backgroundColor: theme.inputBackground, borderColor: theme.border }]}>
+                      <Ionicons name="text-outline" size={9} color={theme.textSecondary} style={{ marginRight: 2 }} />
+                      <RNText style={[styles.fontBadgeText, { color: theme.textSecondary }, currentThemeOption.fontStyle]}>
+                        {currentThemeOption.recommendedFontLabel}
+                      </RNText>
+                    </View>
+                  )}
+                </View>
+                <Text
+                  variant="micro"
+                  style={[styles.themeDesc, { color: theme.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {language === 'es' ? currentThemeOption.desc : currentThemeOption.descEn}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.themeOptionRight}>
+              <View style={styles.swatchesRow}>
+                {currentThemeOption.swatches.map((color, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.swatchDot,
+                      {
+                        backgroundColor: color,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+              <Ionicons
+                name={isThemeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={theme.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Lista de temas que se despliega al pulsar */}
+          {isThemeDropdownOpen && (
+            <View style={styles.dropdownOptionsContainer}>
+              {themeOptions.map((opt, index) => renderThemeOption(opt, index === themeOptions.length - 1))}
+            </View>
+          )}
         </View>
 
         {/* Toggle para vincular la tipografía recomendada al tema */}
@@ -503,6 +610,16 @@ const styles = StyleSheet.create({
   optionLeft: { flexDirection: 'row', alignItems: 'center' },
   optionIcon: { marginRight: 12 },
   optionLabel: { },
+  themeDropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  dropdownOptionsContainer: {
+    width: '100%',
+  },
   themeOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
