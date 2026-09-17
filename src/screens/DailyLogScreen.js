@@ -91,7 +91,7 @@ export default function DailyLogScreen({ navigation }) {
     updateEntryDateTime,
     reorderEntries,
   } = useJournal();
-  const { theme, language, timezone } = useSettings();
+  const { theme, language, timezone, firstDayOfWeek = 'monday' } = useSettings();
   const insets = useSafeAreaInsets();
 
   // ── Estado local de la pantalla ──────────────────────────────────────────────
@@ -145,8 +145,8 @@ export default function DailyLogScreen({ navigation }) {
    * `useMemo` evita recalcular el filtrado y ordenamiento de todas las tareas al teclear en el input.
    */
   const currentLogEntries = useMemo(() => {
-    return filterEntriesForLogMode(entries, currentLogDateStr, todayStr, logMode);
-  }, [entries, currentLogDateStr, todayStr, logMode]);
+    return filterEntriesForLogMode(entries, currentLogDateStr, todayStr, logMode, firstDayOfWeek);
+  }, [entries, currentLogDateStr, todayStr, logMode, firstDayOfWeek]);
 
   // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
 

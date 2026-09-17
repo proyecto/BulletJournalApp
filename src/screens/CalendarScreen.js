@@ -28,7 +28,7 @@ LocaleConfig.locales['en'] = {
 
 export default function CalendarScreen({ navigation }) {
   const { entries, toggleStatus, toggleSignifier, updateEntryDate } = useJournal();
-  const { theme, language, timezone } = useSettings();
+  const { theme, language, timezone, firstDayOfWeek = 'monday' } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -194,6 +194,7 @@ export default function CalendarScreen({ navigation }) {
       <Calendar
         markingType="custom"
         current={selectedDate}
+        firstDay={firstDayOfWeek === 'sunday' ? 0 : 1}
         onDayPress={day => {
           setSelectedDate(day.dateString);
         }}

@@ -138,6 +138,19 @@ describe('DailyLogService', () => {
       const result = filterEntriesForWeek(entries, TODAY, TODAY);
       expect(result.map(e => e.id)).toEqual(['w2', 'w1']);
     });
+
+    it('respects firstDayOfWeek when set to sunday', () => {
+      const entries = [
+        { id: 'wSun', type: 'event', date: '2026-09-13', order_index: 0 }, // Sunday
+        { id: 'wSat', type: 'event', date: '2026-09-19', order_index: 1 }, // Saturday
+        { id: 'wNextSun', type: 'event', date: '2026-09-20', order_index: 2 }, // Next Sunday
+      ];
+      const resultMonday = filterEntriesForWeek(entries, TODAY, TODAY, 'monday');
+      expect(resultMonday.map(e => e.id)).toEqual(['wSat', 'wNextSun']); // Mon 14 to Sun 20
+
+      const resultSunday = filterEntriesForWeek(entries, TODAY, TODAY, 'sunday');
+      expect(resultSunday.map(e => e.id)).toEqual(['wSun', 'wSat']); // Sun 13 to Sat 19
+    });
   });
 
   describe('filterEntriesForMonth', () => {

@@ -97,10 +97,10 @@ export const filterEntriesForDay = (allEntries, viewingDateStr, todayStr) => {
  * @param {string} todayStr - La fecha actual del sistema ('YYYY-MM-DD').
  * @returns {Array<Object>} Las entradas correspondientes a la semana de viewingDateStr.
  */
-export const filterEntriesForWeek = (allEntries, viewingDateStr, todayStr) => {
+export const filterEntriesForWeek = (allEntries, viewingDateStr, todayStr, firstDayOfWeek = 'monday') => {
   if (!allEntries || !Array.isArray(allEntries)) return [];
 
-  const { startStr, endStr } = getWeekRange(viewingDateStr);
+  const { startStr, endStr } = getWeekRange(viewingDateStr, 'system', firstDayOfWeek);
 
   return allEntries.filter(entry => {
     if (entry.listId) return false;
@@ -179,9 +179,9 @@ export const filterEntriesForMonth = (allEntries, viewingDateStr, todayStr) => {
  * @param {'daily'|'week'|'month'} logMode - Modo de log.
  * @returns {Array<Object>}
  */
-export const filterEntriesForLogMode = (allEntries, viewingDateStr, todayStr, logMode = 'daily') => {
+export const filterEntriesForLogMode = (allEntries, viewingDateStr, todayStr, logMode = 'daily', firstDayOfWeek = 'monday') => {
   if (logMode === 'week') {
-    return filterEntriesForWeek(allEntries, viewingDateStr, todayStr);
+    return filterEntriesForWeek(allEntries, viewingDateStr, todayStr, firstDayOfWeek);
   }
   if (logMode === 'month') {
     return filterEntriesForMonth(allEntries, viewingDateStr, todayStr);
