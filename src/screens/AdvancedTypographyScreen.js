@@ -67,7 +67,7 @@ export default function AdvancedTypographyScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
+    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />

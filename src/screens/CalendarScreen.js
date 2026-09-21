@@ -181,7 +181,7 @@ export default function CalendarScreen({ navigation }) {
   }, [today, theme, toggleSignifier, toggleStatus, selectedDate]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={{ width: 28 }} />
         <Text variant="h1" style={[styles.title, { color: theme.text }]}>

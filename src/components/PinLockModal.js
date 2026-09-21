@@ -170,7 +170,7 @@ export default function PinLockModal({
           styles.container,
           {
             backgroundColor: theme.background,
-            paddingTop: Math.max(insets.top, 30),
+            paddingTop: insets.top,
             paddingBottom: Math.max(insets.bottom, 20),
           },
         ]}

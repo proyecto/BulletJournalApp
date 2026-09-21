@@ -42,7 +42,10 @@ export default function SettingsScreen({ navigation }) {
 
   const toggleThemeDropdown = () => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
+      // Evitar el warning en la Nueva Arquitectura (Fabric)
+      if (!global.nativeFabricUIManager) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+      }
     }
     if (typeof LayoutAnimation?.configureNext === 'function') {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -258,7 +261,7 @@ export default function SettingsScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
+    <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={[styles.header, { alignItems: 'center' }]}>
         <Text variant="h1" style={[styles.title, { color: theme.text }]}>
           {language === 'es' ? 'Ajustes' : 'Settings'}

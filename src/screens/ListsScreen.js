@@ -210,7 +210,7 @@ export default function ListsScreen({ navigation }) {
     <View
       style={[
         styles.safeArea,
-        { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) },
+        { backgroundColor: theme.background, paddingTop: insets.top },
       ]}
     >
       {/* ── Cabecera ─────────────────────────────────────────────────────── */}

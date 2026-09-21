@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
@@ -36,7 +36,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar, Platform } from 'react-native';
 import PinLockModal from './src/components/PinLockModal';
 import { initDB } from './src/database/db';
 
@@ -45,12 +45,31 @@ initDB();
 SplashScreen.preventAutoHideAsync();
 
 function MainAppContent() {
-  const { isUnlocked, pinLockEnabled, isDark } = useSettings();
+  const { isUnlocked, pinLockEnabled, isDark, theme } = useSettings();
+
+  const baseTheme = isDark ? DarkTheme : DefaultTheme;
+  
+  const navTheme = {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      primary: theme.primary,
+      background: theme.background,
+      card: theme.cardBackground,
+      text: theme.text,
+      border: theme.border,
+      notification: theme.primary,
+    },
+  };
 
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <NavigationContainer>
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        backgroundColor={theme.background} 
+        translucent={false}
+      />
+      <NavigationContainer theme={navTheme}>
         <AppNavigator />
       </NavigationContainer>
       <PinLockModal visible={!isUnlocked && pinLockEnabled} mode="unlock" />
