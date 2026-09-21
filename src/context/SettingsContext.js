@@ -15,7 +15,8 @@
 
 import React, { createContext, useState, useContext, useMemo, useEffect, useCallback } from 'react';
 import { useColorScheme, Platform } from 'react-native';
-import * as NavigationBar from 'expo-navigation-bar';
+import { NavigationBar } from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
 import * as SettingsRepository from '../repositories/SettingsRepository';
 import {
   lightTheme,
@@ -262,11 +263,10 @@ export function SettingsProvider({ children }) {
     return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : lightTheme);
   }, [themePreference, systemColorScheme]);
 
-  // ── Sincronizar Barra de Navegación de Android ─────────────────────────────────
+  // ── Sincronizar Fondo de Raíz de Android ─────────────────────────────────
   useEffect(() => {
     if (Platform.OS === 'android' && activeTheme) {
-      NavigationBar.setBackgroundColorAsync(activeTheme.background).catch(() => {});
-      NavigationBar.setButtonStyleAsync(activeTheme.isDark ? 'light' : 'dark').catch(() => {});
+      SystemUI.setBackgroundColorAsync(activeTheme.background).catch(() => {});
     }
   }, [activeTheme]);
 
@@ -348,6 +348,9 @@ export function SettingsProvider({ children }) {
 
   return (
     <SettingsContext.Provider value={contextValue}>
+      {Platform.OS === 'android' && (
+        <NavigationBar style={activeTheme.isDark ? 'light' : 'dark'} />
+      )}
       {children}
     </SettingsContext.Provider>
   );
