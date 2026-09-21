@@ -9,4 +9,7 @@ module.exports = {
     '!src/**/*.test.{js,jsx}',
     '!src/constants/**',
   ],
+  moduleNameMapper: {
+    '^react-native/setup-env$': '<rootDir>/jest.setup-env.js',
+  },
 };

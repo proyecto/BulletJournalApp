@@ -25,6 +25,10 @@ jest.mock('react-native', () => {
   }
 
   return {
+    Platform: {
+      OS: 'ios',
+      select: (dict) => dict.ios || dict.default,
+    },
     Animated: {
       Value: MockAnimatedValue,
       spring: jest.fn(() => ({
