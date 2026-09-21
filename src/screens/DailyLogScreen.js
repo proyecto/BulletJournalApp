@@ -514,7 +514,11 @@ export default function DailyLogScreen({ navigation }) {
         onSubmit={handleAddEntry}
         placeholder={language === 'es' ? 'Añadir...' : 'Add entry...'}
         topContent={
-          <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, alignItems: 'center' }}
+          >
             {/* Selector de tipo: Tarea */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'task' ? theme.text : theme.inputBackground }]}
@@ -522,69 +526,95 @@ export default function DailyLogScreen({ navigation }) {
               accessibilityLabel={language === 'es' ? 'Tarea' : 'Task'}
             >
               <Ionicons name="ellipse" size={10} color={selectedType === 'task' ? theme.cardBackground : theme.iconInactive} />
+              <Text style={{ marginLeft: 4, fontSize: 11, fontWeight: selectedType === 'task' ? '600' : '400', color: selectedType === 'task' ? theme.cardBackground : theme.textSecondary }}>
+                {language === 'es' ? 'Tarea' : 'Task'}
+              </Text>
             </TouchableOpacity>
 
             {/* Selector de tipo: Evento */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'event' ? theme.text : theme.inputBackground }]}
-              onPress={() => setSelectedType('event')}
+              onPress={() => {
+                setSelectedType('event');
+                setSelectedSignifier(null);
+              }}
               accessibilityLabel={language === 'es' ? 'Evento' : 'Event'}
             >
               <Ionicons name="ellipse-outline" size={12} color={selectedType === 'event' ? theme.cardBackground : theme.iconInactive} />
+              <Text style={{ marginLeft: 4, fontSize: 11, fontWeight: selectedType === 'event' ? '600' : '400', color: selectedType === 'event' ? theme.cardBackground : theme.textSecondary }}>
+                {language === 'es' ? 'Evento' : 'Event'}
+              </Text>
             </TouchableOpacity>
 
             {/* Selector de tipo: Nota */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'note' ? theme.text : theme.inputBackground }]}
-              onPress={() => setSelectedType('note')}
+              onPress={() => {
+                setSelectedType('note');
+                setSelectedSignifier(null);
+              }}
               accessibilityLabel={language === 'es' ? 'Nota' : 'Note'}
             >
               <Ionicons name="remove" size={16} color={selectedType === 'note' ? theme.cardBackground : theme.iconInactive} />
-            </TouchableOpacity>
-
-            {/* Divisor suave */}
-            <View style={{ width: 1, height: 18, backgroundColor: theme.border, marginHorizontal: 4 }} />
-
-            {/* Significador purista: Prioridad (*) */}
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                { backgroundColor: selectedSignifier === 'priority' ? theme.text : theme.inputBackground },
-              ]}
-              onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
-              accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: 'bold',
-                  color: selectedSignifier === 'priority' ? theme.cardBackground : theme.iconInactive,
-                }}
-              >
-                *
+              <Text style={{ marginLeft: 2, fontSize: 11, fontWeight: selectedType === 'note' ? '600' : '400', color: selectedType === 'note' ? theme.cardBackground : theme.textSecondary }}>
+                {language === 'es' ? 'Nota' : 'Note'}
               </Text>
             </TouchableOpacity>
 
-            {/* Significador purista: Inspiración (!) */}
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                { backgroundColor: selectedSignifier === 'inspiration' ? theme.text : theme.inputBackground },
-              ]}
-              onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
-              accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Inspiration (!)'}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: 'bold',
-                  color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.iconInactive,
-                }}
-              >
-                !
-              </Text>
-            </TouchableOpacity>
-          </>
+            {selectedType === 'task' && (
+              <>
+                {/* Divisor suave */}
+                <View style={{ width: 1, height: 16, backgroundColor: theme.border, marginHorizontal: 0 }} />
+
+                {/* Significador purista: Prioridad (*) */}
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    { backgroundColor: selectedSignifier === 'priority' ? theme.text : theme.inputBackground },
+                  ]}
+                  onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
+                  accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 'bold',
+                      lineHeight: 16,
+                      color: selectedSignifier === 'priority' ? theme.cardBackground : theme.iconInactive,
+                    }}
+                  >
+                    *
+                  </Text>
+                  <Text style={{ marginLeft: 2, fontSize: 11, fontWeight: selectedSignifier === 'priority' ? '600' : '400', color: selectedSignifier === 'priority' ? theme.cardBackground : theme.textSecondary }}>
+                    {language === 'es' ? 'Prioridad' : 'Priority'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Significador purista: Inspiración (!) */}
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    { backgroundColor: selectedSignifier === 'inspiration' ? theme.text : theme.inputBackground },
+                  ]}
+                  onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
+                  accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Idea (!)'}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.iconInactive,
+                    }}
+                  >
+                    !
+                  </Text>
+                  <Text style={{ marginLeft: 2, fontSize: 11, fontWeight: selectedSignifier === 'inspiration' ? '600' : '400', color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.textSecondary }}>
+                    {language === 'es' ? 'Idea' : 'Idea'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
         }
         leftContent={
           /* Botón de calendario para seleccionar fecha u hora de la nueva entrada */
@@ -813,9 +843,9 @@ const styles = StyleSheet.create({
   typeButton: {
     flexDirection:    'row',
     alignItems:       'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical:   6,
-    borderRadius:      16,
+    borderRadius:      14,
   },
   calendarButton: { padding: 4 },
 

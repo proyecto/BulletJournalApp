@@ -256,9 +256,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   topContentContainer: {
-    flexDirection: 'row',
     marginBottom: 10,
-    gap: 8,
   },
   inputRow: {
     flexDirection: 'row',
