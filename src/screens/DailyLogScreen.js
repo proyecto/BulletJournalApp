@@ -628,8 +628,13 @@ export default function DailyLogScreen({ navigation }) {
       />
 
       {/* ── Desplegable flotante: Selector de vista (Log Diario / Semanal / Mensual) ── */}
-      {showLogModeMenu && (
-        <View style={styles.inlineOverlayContainer} pointerEvents="box-none">
+      <Modal
+        transparent={true}
+        visible={showLogModeMenu}
+        onRequestClose={() => setShowLogModeMenu(false)}
+        animationType="fade"
+      >
+        <View style={styles.inlineOverlayContainer}>
           <TouchableOpacity
             style={styles.inlineBackdrop}
             activeOpacity={1}
@@ -642,7 +647,7 @@ export default function DailyLogScreen({ navigation }) {
                 backgroundColor: theme.cardBackground,
                 borderColor: theme.border,
                 shadowColor: theme.text,
-                top: Math.max(insets.top, 30) + 55,
+                top: insets.top + 60,
               },
             ]}
           >
@@ -693,7 +698,7 @@ export default function DailyLogScreen({ navigation }) {
             })}
           </View>
         </View>
-      )}
+      </Modal>
 
       {/* ── Modal de Búsqueda Global ────────────────────────────────────────── */}
       <SearchModal
@@ -816,8 +821,6 @@ const styles = StyleSheet.create({
 
   inlineOverlayContainer: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 9998,
-    elevation: 9998,
   },
   inlineBackdrop: {
     ...StyleSheet.absoluteFillObject,
