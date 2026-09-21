@@ -226,4 +226,18 @@ export const getSignifierSymbol = (signifier) => {
  */
 export const isEntryTemporallyDisplaced = () => false;
 
+/**
+ * Determina si una tarea proviene de un día anterior al actual visualizado.
+ * (Migrada hacia adelante).
+ *
+ * @param {Object} entry - El objeto entrada.
+ * @param {string} viewingDateStr - La fecha que se está visualizando.
+ * @returns {boolean} True si fue migrada.
+ */
+export const isEntryMigrated = (entry, viewingDateStr) => {
+  if (!entry || entry.type !== 'task') return false;
+  if (!entry.date) return false;
+  return entry.date < viewingDateStr;
+};
+
 

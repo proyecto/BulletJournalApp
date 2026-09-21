@@ -51,6 +51,7 @@ import {
   getEntryIcon,
   isEntryCompleted,
   getSignifierSymbol,
+  isEntryMigrated,
 } from '../services/DailyLogService';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
@@ -385,6 +386,7 @@ export default function DailyLogScreen({ navigation }) {
 
               // Cálculos de presentación delegados al servicio
               const isCompleted = isEntryCompleted(item, todayStr);
+              const isMigrated  = isEntryMigrated(item, currentLogDateStr);
               const iconName    = getEntryIcon(item, todayStr);
               const iconColor   = isCompleted ? theme.textCompleted : theme.text;
 
@@ -424,6 +426,16 @@ export default function DailyLogScreen({ navigation }) {
                         disabled={draggingIndex !== null}
                         activeOpacity={0.5}
                       >
+                        {isMigrated ? (
+                          <Text
+                            style={[
+                              styles.signifierText,
+                              { color: isCompleted ? theme.textCompleted : theme.text, marginRight: item.signifier ? 0 : 2 },
+                            ]}
+                          >
+                            {'>'}
+                          </Text>
+                        ) : null}
                         {item.signifier ? (
                           <Text
                             style={[
