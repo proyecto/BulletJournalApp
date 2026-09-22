@@ -263,13 +263,11 @@ export function SettingsProvider({ children }) {
     return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : lightTheme);
   }, [themePreference, systemColorScheme]);
 
-  // ── Sincronizar Fondo de Raíz de Android ─────────────────────────────────
+  // ── Sincronizar Fondo de Raíz de Android y Botones ───────────────────────
   useEffect(() => {
     if (Platform.OS === 'android' && activeTheme) {
-      console.log('Intentando cambiar fondo a:', activeTheme.tabBar);
-      SystemUI.setBackgroundColorAsync(activeTheme.tabBar)
-        .then(() => console.log('Fondo cambiado con éxito'))
-        .catch((err) => console.log('Error cambiando fondo:', err));
+      SystemUI.setBackgroundColorAsync(activeTheme.tabBar).catch(() => {});
+      NavigationBar.setStyle(activeTheme.isDark ? 'light' : 'dark');
     }
   }, [activeTheme]);
 
