@@ -18,6 +18,7 @@ import { useColorScheme, Platform } from 'react-native';
 import { NavigationBar } from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
 import * as SettingsRepository from '../repositories/SettingsRepository';
+import { loadFontFamily } from '../services/FontLoader';
 import {
   lightTheme,
   darkTheme,
@@ -114,7 +115,10 @@ export function SettingsProvider({ children }) {
         if (settings.language)        setLanguageState(settings.language);
         if (settings.timezone)        setTimezoneState(settings.timezone);
         if (settings.firstDayOfWeek)  setFirstDayOfWeekState(settings.firstDayOfWeek);
-        if (settings.fontFamily)      setFontFamilyState(settings.fontFamily);
+        if (settings.fontFamily) {
+          setFontFamilyState(settings.fontFamily);
+          loadFontFamily(settings.fontFamily);
+        }
         if (settings.pinCode)         setPinCodeState(settings.pinCode);
 
         if (settings.syncThemeFont !== undefined) {
@@ -224,6 +228,7 @@ export function SettingsProvider({ children }) {
   /** Actualiza la familia tipográfica global y la persiste. */
   const setFontFamily = useCallback((val) => {
     setFontFamilyState(val);
+    loadFontFamily(val);
     SettingsRepository.saveSetting('fontFamily', val);
   }, []);
 
