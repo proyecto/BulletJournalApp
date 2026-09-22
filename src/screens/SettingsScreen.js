@@ -544,7 +544,7 @@ export default function SettingsScreen({ navigation }) {
 
         <View style={styles.versionContainer}>
           <Text variant="caption" style={[styles.versionText, { color: theme.textSecondary }]}>
-            BulletJournalApp v1.0.7 (Build 8)
+            BulletJournalApp v2.0.0-dev (Build 9)
           </Text>
         </View>
       </ScrollView>
