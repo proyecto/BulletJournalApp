@@ -19,6 +19,10 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "navigationBar": {
+        "backgroundColor": "#1C1C1E",
+        "barStyle": "light-content"
       }
     },
     "extra": {

@@ -266,7 +266,10 @@ export function SettingsProvider({ children }) {
   // ── Sincronizar Fondo de Raíz de Android ─────────────────────────────────
   useEffect(() => {
     if (Platform.OS === 'android' && activeTheme) {
-      SystemUI.setBackgroundColorAsync(activeTheme.background).catch(() => {});
+      console.log('Intentando cambiar fondo a:', activeTheme.tabBar);
+      SystemUI.setBackgroundColorAsync(activeTheme.tabBar)
+        .then(() => console.log('Fondo cambiado con éxito'))
+        .catch((err) => console.log('Error cambiando fondo:', err));
     }
   }, [activeTheme]);
 
