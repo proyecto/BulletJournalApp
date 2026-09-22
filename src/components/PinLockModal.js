@@ -4,7 +4,7 @@
  * Soporta modos: 'unlock', 'setup', 'disable', 'change'.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
