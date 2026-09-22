@@ -244,28 +244,30 @@ export default function ListsScreen({ navigation }) {
           scrollEnabled={draggingIndex === null}
         >
           {/* ── Tarjeta de sistema: Archivo de Notas (siempre primera, no borrable) ──── */}
-          <TouchableOpacity
-            style={[
-              styles.card,
-              styles.systemCard,
-              { backgroundColor: theme.primary + '18', shadowColor: theme.primary },
-            ]}
-            onPress={() => navigation.navigate('ListDetail', { list: SYSTEM_NOTES_ARCHIVE })}
-            activeOpacity={0.7}
-            disabled={draggingIndex !== null}
-          >
-            <View style={styles.iconContainer}>
-              <Ionicons name="filing-outline" size={20} color={theme.primary} />
-            </View>
-            <Text
-              variant="body"
-              style={[styles.cardText, { color: theme.primary, fontWeight: '600' }]}
-              numberOfLines={1}
+          <View style={styles.systemSlot}>
+            <TouchableOpacity
+              style={[
+                styles.card,
+                styles.systemCard,
+                { backgroundColor: theme.primary + '18', shadowColor: theme.primary },
+              ]}
+              onPress={() => navigation.navigate('ListDetail', { list: SYSTEM_NOTES_ARCHIVE })}
+              activeOpacity={0.7}
+              disabled={draggingIndex !== null}
             >
-              {language === 'es' ? 'Archivo de Notas' : 'Notes Archive'}
-            </Text>
-            <Ionicons name="lock-closed-outline" size={14} color={theme.primary} style={{ opacity: 0.6, marginRight: 4 }} />
-          </TouchableOpacity>
+              <View style={styles.iconContainer}>
+                <Ionicons name="archive-outline" size={20} color={theme.primary} />
+              </View>
+              <Text
+                variant="body"
+                style={[styles.cardText, { color: theme.primary, fontWeight: '600' }]}
+                numberOfLines={1}
+              >
+                {language === 'es' ? 'Archivo de Notas' : 'Notes Archive'}
+              </Text>
+              <Ionicons name="lock-closed-outline" size={14} color={theme.primary} style={{ opacity: 0.6, marginRight: 4 }} />
+            </TouchableOpacity>
+          </View>
 
           {orderedLists.length === 0 ? (
             // ── Estado vacío ──────────────────────────────────────────────
@@ -470,9 +472,13 @@ const styles = StyleSheet.create({
   },
 
   /** Tarjeta del sistema: añade altura fija y margen para alinearse con los slots */
-  systemCard: {
+  systemSlot: {
     height:        CARD_HEIGHT,
     marginBottom:  CARD_GAP,
+  },
+
+  systemCard: {
+    flex:          1,
     shadowOpacity: 0.06,
   },
 

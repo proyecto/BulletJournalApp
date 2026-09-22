@@ -283,7 +283,7 @@ export default function ListDetailScreen({ route, navigation }) {
 
         {archiveEntries.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="filing-outline" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
+            <Ionicons name="archive-outline" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
             <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
               {emptyMsg}
             </Text>
