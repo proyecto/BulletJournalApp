@@ -41,6 +41,9 @@ const db = SQLite.openDatabaseSync('bulletjournal.db');
 export const initDB = () => {
   db.execSync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA temp_store = MEMORY;
+    PRAGMA cache_size = -2000;
     PRAGMA foreign_keys = ON;
 
     -- Tabla de listas personalizadas del usuario (ej: "Películas", "Libros")
@@ -82,6 +85,8 @@ export const initDB = () => {
     CREATE INDEX IF NOT EXISTS idx_entries_order ON entries(order_index);
     CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(type);
     CREATE INDEX IF NOT EXISTS idx_entries_date_order ON entries(date, order_index);
+    CREATE INDEX IF NOT EXISTS idx_entries_archive ON entries(type, listId, date);
+    CREATE INDEX IF NOT EXISTS idx_entries_log_query ON entries(listId, status, date);
     CREATE INDEX IF NOT EXISTS idx_lists_order ON lists(order_index);
   `);
 

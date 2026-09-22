@@ -181,10 +181,26 @@ export const updateEntryDate = async (id, newDate) => {
 export const batchUpdateEntryOrders = async (entriesWithNewOrder) => {
   if (!entriesWithNewOrder || entriesWithNewOrder.length === 0) return;
   await runInTransaction(async () => {
-    for (let i = 0; i < entriesWithNewOrder.length; i++) {
-      const item = entriesWithNewOrder[i];
-      const newIndex = item.order_index !== undefined ? item.order_index : i;
-      await db.runAsync('UPDATE entries SET order_index = ? WHERE id = ?', [newIndex, item.id]);
+    if (entriesWithNewOrder.length <= 50) {
+      const ids = entriesWithNewOrder.map((e) => e.id);
+      const caseClauses = entriesWithNewOrder.map(() => 'WHEN id = ? THEN ?').join(' ');
+      const placeholders = ids.map(() => '?').join(',');
+      const sql = `UPDATE entries SET order_index = CASE ${caseClauses} END WHERE id IN (${placeholders})`;
+
+      const pairs = [];
+      entriesWithNewOrder.forEach((e, idx) => {
+        const order = e.order_index !== undefined ? e.order_index : idx;
+        pairs.push(e.id, order);
+      });
+
+      const params = [...pairs, ...ids];
+      await db.runAsync(sql, params);
+    } else {
+      for (let i = 0; i < entriesWithNewOrder.length; i++) {
+        const item = entriesWithNewOrder[i];
+        const newIndex = item.order_index !== undefined ? item.order_index : i;
+        await db.runAsync('UPDATE entries SET order_index = ? WHERE id = ?', [newIndex, item.id]);
+      }
     }
   });
 };

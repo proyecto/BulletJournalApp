@@ -73,10 +73,20 @@ const createMockDb = () => {
         const [date, id] = params;
         const entry = entriesStore.find(e => e.id === id);
         if (entry) entry.date = date;
-      } else if (sql.includes('UPDATE entries SET order_index = ?')) {
-        const [order_index, id] = params;
-        const entry = entriesStore.find(e => e.id === id);
-        if (entry) entry.order_index = order_index;
+      } else if (sql.includes('UPDATE entries SET order_index =')) {
+        if (sql.includes('CASE')) {
+          const numPairs = Math.floor((params.length / 3) * 2);
+          for (let i = 0; i < numPairs; i += 2) {
+            const id = params[i];
+            const order = params[i + 1];
+            const entry = entriesStore.find(e => e.id === id);
+            if (entry) entry.order_index = order;
+          }
+        } else {
+          const [order_index, id] = params;
+          const entry = entriesStore.find(e => e.id === id);
+          if (entry) entry.order_index = order_index;
+        }
       } else if (sql.includes('DELETE FROM entries WHERE id = ?')) {
         const [id] = params;
         entriesStore = entriesStore.filter(e => e.id !== id);
@@ -86,10 +96,20 @@ const createMockDb = () => {
       } else if (sql.includes('INSERT INTO lists')) {
         const [id, title, order_index] = params;
         listsStore.push({ id, title, order_index });
-      } else if (sql.includes('UPDATE lists SET order_index = ?')) {
-        const [order_index, id] = params;
-        const list = listsStore.find(l => l.id === id);
-        if (list) list.order_index = order_index;
+      } else if (sql.includes('UPDATE lists SET order_index =')) {
+        if (sql.includes('CASE')) {
+          const numPairs = Math.floor((params.length / 3) * 2);
+          for (let i = 0; i < numPairs; i += 2) {
+            const id = params[i];
+            const order = params[i + 1];
+            const list = listsStore.find(l => l.id === id);
+            if (list) list.order_index = order;
+          }
+        } else {
+          const [order_index, id] = params;
+          const list = listsStore.find(l => l.id === id);
+          if (list) list.order_index = order_index;
+        }
       } else if (sql.includes('DELETE FROM lists WHERE id = ?')) {
         const [id] = params;
         listsStore = listsStore.filter(l => l.id !== id);
