@@ -33,18 +33,23 @@ export default function SmartInput({
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef(null);
 
+  const focusTimerRef = useRef(null);
+
   const handleOpen = () => {
     setIsOpen(true);
   };
 
   const handleClose = useCallback(() => {
+    if (focusTimerRef.current) {
+      clearTimeout(focusTimerRef.current);
+    }
     Keyboard.dismiss();
     setIsOpen(false);
   }, []);
 
   const handleModalShow = () => {
     // Delay de 60ms para garantizar que el foco nativo se aplique tras el render del Dialog
-    setTimeout(() => {
+    focusTimerRef.current = setTimeout(() => {
       inputRef.current?.focus();
     }, 60);
   };

@@ -82,6 +82,17 @@ export function useDragAndDrop({ items, onReorder, slotHeight }) {
    */
   const itemAnimMap = useRef({}).current;
 
+  // Limpieza de memoria: eliminar de itemAnimMap los IDs que ya no están en orderedItems
+  const currentIds = new Set(orderedItems.map((item) => item.id));
+  Object.keys(itemAnimMap).forEach((id) => {
+    if (!currentIds.has(id)) {
+      if (itemAnimMap[id]) {
+        itemAnimMap[id].stopAnimation();
+      }
+      delete itemAnimMap[id];
+    }
+  });
+
   // Garantizar que cada elemento del array actual tenga su Animated.Value
   orderedItems.forEach((item) => {
     if (!itemAnimMap[item.id]) {

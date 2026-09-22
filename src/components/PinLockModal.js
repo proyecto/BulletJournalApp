@@ -32,6 +32,8 @@ export default function PinLockModal({
   const [errorMessage, setErrorMessage] = useState('');
   const [shakeAnim] = useState(new Animated.Value(0));
 
+  const pinTimerRef = useRef(null);
+
   useEffect(() => {
     if (visible) {
       setEnteredPin('');
@@ -39,6 +41,11 @@ export default function PinLockModal({
       setTempFirstPin('');
       setErrorMessage('');
     }
+    return () => {
+      if (pinTimerRef.current) {
+        clearTimeout(pinTimerRef.current);
+      }
+    };
   }, [visible, mode]);
 
   const triggerErrorAnimation = (msg) => {
@@ -59,7 +66,8 @@ export default function PinLockModal({
     setErrorMessage('');
 
     if (nextPin.length === 4) {
-      setTimeout(() => processPinInput(nextPin), 80);
+      if (pinTimerRef.current) clearTimeout(pinTimerRef.current);
+      pinTimerRef.current = setTimeout(() => processPinInput(nextPin), 80);
     }
   };
 
