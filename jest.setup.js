@@ -47,7 +47,7 @@ const createMockDb = () => {
       }
     }),
     getAllAsync: jest.fn(async (sql, params = []) => {
-      if (sql.includes('FROM entries')) {
+      if (sql.includes('FROM entries') || sql.includes('v_note_archive') || sql.includes('v_open_daily_tasks')) {
         return [...entriesStore];
       }
       if (sql.includes('FROM lists')) {

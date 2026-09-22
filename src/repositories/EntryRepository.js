@@ -32,9 +32,7 @@ export const getAllEntries = async () => {
  * @returns {Promise<Array<Object>>} Notas ordenadas por fecha desc.
  */
 export const getNoteArchiveEntries = async () => {
-  return await db.getAllAsync(
-    "SELECT * FROM entries WHERE type = 'note' AND listId IS NULL ORDER BY date DESC, order_index ASC"
-  );
+  return await db.getAllAsync('SELECT * FROM v_note_archive');
 };
 
 

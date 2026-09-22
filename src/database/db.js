@@ -88,6 +88,17 @@ export const initDB = () => {
     CREATE INDEX IF NOT EXISTS idx_entries_archive ON entries(type, listId, date);
     CREATE INDEX IF NOT EXISTS idx_entries_log_query ON entries(listId, status, date);
     CREATE INDEX IF NOT EXISTS idx_lists_order ON lists(order_index);
+
+    -- Índices Parciales (Partial Indexes): Árboles B-Tree hiperligeros en RAM dedicados a registros específicos
+    CREATE INDEX IF NOT EXISTS idx_entries_open_tasks ON entries(date, order_index) WHERE status = 'open' AND type = 'task';
+    CREATE INDEX IF NOT EXISTS idx_entries_archive_notes ON entries(date, order_index) WHERE type = 'note' AND listId IS NULL;
+
+    -- Vistas SQLite (Views) para consultas complejas frecuentes con cero sobrecoste
+    CREATE VIEW IF NOT EXISTS v_note_archive AS
+      SELECT * FROM entries WHERE type = 'note' AND listId IS NULL ORDER BY date DESC, order_index ASC;
+
+    CREATE VIEW IF NOT EXISTS v_open_daily_tasks AS
+      SELECT * FROM entries WHERE type = 'task' AND status = 'open' AND listId IS NULL ORDER BY date ASC, order_index ASC;
   `);
 
   // Migración segura para bases de datos existentes que no tenían la columna order_index en entries
