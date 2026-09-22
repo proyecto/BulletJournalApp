@@ -14,7 +14,9 @@
  */
 
 import React, { createContext, useState, useContext, useMemo, useEffect, useCallback } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Platform } from 'react-native';
+import { NavigationBar } from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
 import * as SettingsRepository from '../repositories/SettingsRepository';
 import {
   lightTheme,
@@ -261,6 +263,14 @@ export function SettingsProvider({ children }) {
     return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : lightTheme);
   }, [themePreference, systemColorScheme]);
 
+  // ── Sincronizar Fondo de Raíz de Android y Botones ───────────────────────
+  useEffect(() => {
+    if (Platform.OS === 'android' && activeTheme) {
+      SystemUI.setBackgroundColorAsync(activeTheme.tabBar).catch(() => {});
+      NavigationBar.setStyle(activeTheme.isDark ? 'light' : 'dark');
+    }
+  }, [activeTheme]);
+
   const resetSettings = useCallback(() => {
     setThemePreferenceState('system');
     setLanguageState('es');
@@ -339,6 +349,9 @@ export function SettingsProvider({ children }) {
 
   return (
     <SettingsContext.Provider value={contextValue}>
+      {Platform.OS === 'android' && (
+        <NavigationBar style={activeTheme.isDark ? 'light' : 'dark'} />
+      )}
       {children}
     </SettingsContext.Provider>
   );
