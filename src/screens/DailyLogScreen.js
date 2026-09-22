@@ -56,6 +56,7 @@ import {
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
 import SearchModal from '../components/SearchModal';
+import EntryCard from '../components/EntryCard';
 
 // ─── Constantes de Layout ─────────────────────────────────────────────────────
 
@@ -384,12 +385,6 @@ export default function DailyLogScreen({ navigation }) {
               const isDragging    = draggingIndex === index;
               const isDraggingAny = draggingIndex !== null;
 
-              // Cálculos de presentación delegados al servicio
-              const isCompleted = isEntryCompleted(item, todayStr);
-              const isMigrated  = isEntryMigrated(item, currentLogDateStr);
-              const iconName    = getEntryIcon(item, todayStr);
-              const iconColor   = isCompleted ? theme.textCompleted : theme.text;
-
               return (
                 <Animated.View
                   key={item.id}
@@ -404,114 +399,20 @@ export default function DailyLogScreen({ navigation }) {
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.card,
-                      {
-                        backgroundColor: theme.cardBackground,
-                        shadowColor:     theme.text,
-                        shadowOpacity:   isDragging ? 0.3  : 0.03,
-                        opacity:         isDragging ? 0.95 : 1,
-                      },
-                      isCompleted && { backgroundColor: theme.cardCompleted },
-                    ]}
-                  >
-                    {/* ── Área principal: toggle de significador (* / !) + toggle de estado + mover fecha ──── */}
-                    <View style={styles.cardMainArea}>
-                      {/* Ícono del tipo/estado de la entrada + Significador purista (* / !) */}
-                      <TouchableOpacity
-                        style={styles.iconContainer}
-                        onPress={() => toggleSignifier(item.id)}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        disabled={draggingIndex !== null}
-                        activeOpacity={0.5}
-                      >
-                        {isMigrated ? (
-                          <Text
-                            style={[
-                              styles.signifierText,
-                              { color: isCompleted ? theme.textCompleted : theme.text, marginRight: item.signifier ? 0 : 2 },
-                            ]}
-                          >
-                            {'>'}
-                          </Text>
-                        ) : null}
-                        {item.signifier ? (
-                          <Text
-                            style={[
-                              styles.signifierText,
-                              { color: isCompleted ? theme.textCompleted : theme.text },
-                            ]}
-                          >
-                            {getSignifierSymbol(item.signifier)}
-                          </Text>
-                        ) : null}
-                        <Ionicons
-                          name={iconName}
-                          size={item.type === 'note' ? 24 : 16}
-                          color={iconColor}
-                          style={item.type === 'task' && !isCompleted ? styles.taskIcon : null}
-                        />
-                      </TouchableOpacity>
-
-                      {/* Texto de la entrada + hora opcional */}
-                      <TouchableOpacity
-                        style={styles.cardContent}
-                        onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
-                        onLongPress={() => handleOpenDatePickerForItem(item)}
-                        delayLongPress={350}
-                        activeOpacity={0.7}
-                        disabled={draggingIndex !== null}
-                      >
-                        {item.time ? (
-                          <View style={[styles.timeBadge, { backgroundColor: theme.inputBackground }]}>
-                            <Text style={[styles.timeBadgeText, { color: isCompleted ? theme.textCompleted : theme.text }]}>
-                              {item.time}
-                            </Text>
-                          </View>
-                        ) : null}
-
-                        <Text
-                          variant="body"
-                          style={[
-                            styles.cardText,
-                            { color: theme.text },
-                            isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.text}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* ── Acciones: eliminar y arrastrar ──────────────────── */}
-                    <View style={styles.actionButtons}>
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={() => confirmDeleteEntry(item.id)}
-                        accessibilityLabel={language === 'es' ? 'Eliminar' : 'Delete'}
-                        accessibilityRole="button"
-                        disabled={draggingIndex !== null}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={theme.error || '#ff3b30'} />
-                      </TouchableOpacity>
-
-                      <View
-                        style={styles.dragHandle}
-                        {...panResponders[index]?.panHandlers}
-                        accessibilityLabel={
-                          language === 'es' ? 'Arrastrar para ordenar' : 'Drag to reorder'
-                        }
-                      >
-                        <Ionicons
-                          name="menu"
-                          size={24}
-                          color={isDragging ? theme.primary : theme.textSecondary}
-                        />
-                      </View>
-                    </View>
-                  </View>
+                  <EntryCard
+                    item={item}
+                    theme={theme}
+                    language={language}
+                    todayStr={todayStr}
+                    currentLogDateStr={currentLogDateStr}
+                    onToggleStatus={toggleStatus}
+                    onToggleSignifier={toggleSignifier}
+                    onLongPress={handleOpenDatePickerForItem}
+                    onDelete={confirmDeleteEntry}
+                    dragHandleHandlers={panResponders[index]?.panHandlers}
+                    isDragging={isDragging}
+                    isDisabled={isDraggingAny}
+                  />
                 </Animated.View>
               );
             })

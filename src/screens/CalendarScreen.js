@@ -235,6 +235,10 @@ export default function CalendarScreen({ navigation }) {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         ListEmptyComponent={
           <View style={styles.emptyDate}>
             <Text variant="body" style={[styles.emptyDateText, { color: theme.textSecondary }]}>
