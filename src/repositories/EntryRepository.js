@@ -26,6 +26,19 @@ export const getAllEntries = async () => {
 };
 
 /**
+ * Obtiene todas las entradas de tipo 'note' sin lista asignada (listId IS NULL),
+ * ordenadas por fecha descendente. Son las notas del Daily Log sin procesar.
+ * Alimenta la vista "Archivo de Notas" del sistema.
+ * @returns {Promise<Array<Object>>} Notas ordenadas por fecha desc.
+ */
+export const getNoteArchiveEntries = async () => {
+  return await db.getAllAsync(
+    "SELECT * FROM entries WHERE type = 'note' AND listId IS NULL ORDER BY date DESC, order_index ASC"
+  );
+};
+
+
+/**
  * Inserta una nueva entrada en la base de datos.
  * @param {Object} entry - El objeto entrada a persistir.
  * @param {string} entry.id - ID único (generado por EntryFactory).

@@ -47,6 +47,7 @@ import { useJournal } from '../context/JournalContext';
 import SmartInput from '../components/SmartInput';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
 import SearchModal from '../components/SearchModal';
+import { SYSTEM_NOTES_ARCHIVE } from '../constants/systemLists';
 
 // ─── Constantes de Layout ─────────────────────────────────────────────────────
 
@@ -242,6 +243,30 @@ export default function ListsScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           scrollEnabled={draggingIndex === null}
         >
+          {/* ── Tarjeta de sistema: Archivo de Notas (siempre primera, no borrable) ──── */}
+          <TouchableOpacity
+            style={[
+              styles.card,
+              styles.systemCard,
+              { backgroundColor: theme.primary + '18', shadowColor: theme.primary },
+            ]}
+            onPress={() => navigation.navigate('ListDetail', { list: SYSTEM_NOTES_ARCHIVE })}
+            activeOpacity={0.7}
+            disabled={draggingIndex !== null}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons name="filing-outline" size={20} color={theme.primary} />
+            </View>
+            <Text
+              variant="body"
+              style={[styles.cardText, { color: theme.primary, fontWeight: '600' }]}
+              numberOfLines={1}
+            >
+              {language === 'es' ? 'Archivo de Notas' : 'Notes Archive'}
+            </Text>
+            <Ionicons name="lock-closed-outline" size={14} color={theme.primary} style={{ opacity: 0.6, marginRight: 4 }} />
+          </TouchableOpacity>
+
           {orderedLists.length === 0 ? (
             // ── Estado vacío ──────────────────────────────────────────────
             <View style={styles.emptyContainer}>
@@ -442,6 +467,13 @@ const styles = StyleSheet.create({
     borderRadius:    12,
     shadowOffset:    { width: 0, height: 2 },
     shadowRadius:    4,
+  },
+
+  /** Tarjeta del sistema: añade altura fija y margen para alinearse con los slots */
+  systemCard: {
+    height:        CARD_HEIGHT,
+    marginBottom:  CARD_GAP,
+    shadowOpacity: 0.06,
   },
 
   /** Área táctil principal (navegación al detalle) */

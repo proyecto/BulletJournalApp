@@ -32,6 +32,7 @@ import {
   ScrollView,
   Animated,
   Alert,
+  SectionList,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +43,8 @@ import { useJournal } from '../context/JournalContext';
 import SmartInput from '../components/SmartInput';
 import { createListEntry } from '../factories/EntryFactory';
 import { useDragAndDrop } from '../hooks/useDragAndDrop';
+import { SYSTEM_NOTES_ARCHIVE_ID } from '../constants/systemLists';
+import { getNoteArchiveEntries } from '../repositories/EntryRepository';
 
 // ─── Constantes de Layout ─────────────────────────────────────────────────────
 
@@ -70,6 +73,9 @@ export default function ListDetailScreen({ route, navigation }) {
    */
   const { list } = route.params;
 
+  /** Indica si esta pantalla muestra la lista de sistema "Archivo de Notas" */
+  const isArchive = list.id === SYSTEM_NOTES_ARCHIVE_ID;
+
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
 
   const { theme, language, timezone } = useSettings();
@@ -83,6 +89,42 @@ export default function ListDetailScreen({ route, navigation }) {
 
   /** Significador purista seleccionado para el nuevo elemento ('priority' | 'inspiration' | null) */
   const [selectedSignifier, setSelectedSignifier] = useState(null);
+
+  /** Entradas del Archivo de Notas (solo en modo archivo) */
+  const [archiveEntries, setArchiveEntries] = useState([]);
+
+  /**
+   * Carga las notas del Archivo cuando el modo es archivo.
+   * Se recarga también cuando `entries` cambia (el usuario borra una nota desde el Daily Log).
+   */
+  useEffect(() => {
+    if (!isArchive) return;
+    getNoteArchiveEntries().then(setArchiveEntries).catch(() => {});
+  }, [isArchive, entries]);
+
+  /**
+   * Agrupa las notas del Archivo por mes/año para facilitar el escaneo visual.
+   * Formato de sección: "Septiembre 2026"
+   */
+  const archiveSections = useMemo(() => {
+    if (!isArchive) return [];
+    const groups = {};
+    archiveEntries.forEach((entry) => {
+      const [year, month] = entry.date.split('-');
+      const key = `${year}-${month}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(entry);
+    });
+    return Object.entries(groups).map(([key, data]) => {
+      const [year, month] = key.split('-');
+      const date = new Date(Number(year), Number(month) - 1, 1);
+      const title = date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', {
+        month: 'long',
+        year:  'numeric',
+      });
+      return { title, data };
+    });
+  }, [archiveEntries, isArchive, language]);
 
   // ── Filtrado de entradas de la lista ──────────────────────────────────────────
 
@@ -201,6 +243,99 @@ export default function ListDetailScreen({ route, navigation }) {
   };
 
   // ── Renderizado ───────────────────────────────────────────────────────────────
+
+  // ── MODO ARCHIVO ─────────────────────────────────────────────────────────────
+  if (isArchive) {
+    const archiveTitle = language === 'es' ? 'Archivo de Notas' : 'Notes Archive';
+    const emptyMsg     = language === 'es'
+      ? 'Aún no hay notas. Las notas que escribas en el Diario aparecerán aquí.'
+      : 'No notes yet. Notes you write in the Daily Log will appear here.';
+
+    const confirmDeleteArchiveItem = (id) => {
+      Alert.alert(
+        language === 'es' ? 'Eliminar nota' : 'Delete note',
+        language === 'es'
+          ? '¿Eliminar esta nota del diario de forma permanente?'
+          : 'Permanently delete this note from the journal?',
+        [
+          { text: language === 'es' ? 'Cancelar' : 'Cancel', style: 'cancel' },
+          { text: language === 'es' ? 'Eliminar' : 'Delete', style: 'destructive', onPress: () => deleteEntry(id) },
+        ]
+      );
+    };
+
+    return (
+      <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+        {/* Cabecera */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={28} color={theme.text} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text variant="h2" style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+              {archiveTitle}
+            </Text>
+            <Text variant="caption" style={[styles.subtitle, { color: theme.textSecondary }]}>
+              {archiveEntries.length} {language === 'es' ? 'notas' : 'notes'}
+            </Text>
+          </View>
+        </View>
+
+        {archiveEntries.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="filing-outline" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
+            <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
+              {emptyMsg}
+            </Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={archiveSections}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            renderSectionHeader={({ section: { title } }) => (
+              <Text
+                variant="caption"
+                style={[styles.archiveSectionHeader, { color: theme.textSecondary }]}
+              >
+                {title.charAt(0).toUpperCase() + title.slice(1)}
+              </Text>
+            )}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.archiveCard,
+                  { backgroundColor: theme.cardBackground, shadowColor: theme.text },
+                ]}
+              >
+                <View style={styles.archiveCardContent}>
+                  {/* Bala de nota (–) */}
+                  <Text style={[styles.archiveBullet, { color: theme.textSecondary }]}>–</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" style={{ color: theme.text }} numberOfLines={3}>
+                      {item.text}
+                    </Text>
+                    <Text variant="caption" style={{ color: theme.textSecondary, marginTop: 2 }}>
+                      {item.date}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => confirmDeleteArchiveItem(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={theme.error || '#ff3b30'} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          />
+        )}
+      </View>
+    );
+  }
+
+  // ── MODO NORMAL (lista de usuario) ───────────────────────────────────
 
   return (
     <View
@@ -518,4 +653,36 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { opacity: 0.5, marginBottom: 16 },
   emptyText: { textAlign: 'center', lineHeight: 24, paddingHorizontal: 20 },
+
+  /** Encabezado de sección del archivo (mes/año) */
+  archiveSectionHeader: {
+    textTransform: 'capitalize',
+    marginTop:     20,
+    marginBottom:  8,
+    paddingHorizontal: 4,
+    fontWeight:    '600',
+    letterSpacing: 0.5,
+  },
+
+  /** Tarjeta de nota en el Archivo */
+  archiveCard: {
+    borderRadius:    12,
+    marginBottom:    10,
+    paddingHorizontal: 16,
+    paddingVertical:   12,
+    shadowOffset:    { width: 0, height: 1 },
+    shadowRadius:    3,
+    shadowOpacity:   0.04,
+  },
+
+  archiveCardContent: {
+    flexDirection: 'row',
+    alignItems:    'flex-start',
+  },
+
+  archiveBullet: {
+    fontSize:    18,
+    marginRight: 12,
+    marginTop:   1,
+  },
 });
