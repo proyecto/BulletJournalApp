@@ -106,6 +106,7 @@ export const initDB = () => {
     db.execSync('ALTER TABLE entries ADD COLUMN order_index INTEGER DEFAULT 0;');
   } catch (e) {
     // La columna ya existe, se ignora de forma segura
+    console.log('Nota de migración (ignorada):', e.message);
   }
 
   // Migración segura para bases de datos existentes que no tenían la columna signifier en entries
