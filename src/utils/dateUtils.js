@@ -35,6 +35,14 @@ const getIntlFormatter = (timezone) => {
  * @param {string} [timezone='system'] - Identificador IANA de timezone (ej: 'Europe/Madrid').
  * @returns {string} La fecha en formato 'YYYY-MM-DD'.
  */
+const formatFallback = (date) => {
+  const d = new Date(date);
+  const year  = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day   = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export const getFormattedDate = (date, timezone = 'system') => {
   const d = date instanceof Date ? date : new Date(date);
   const timeMs = d.getTime();
