@@ -2,162 +2,229 @@ import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { useSettings } from '../context/SettingsContext';
 
+const FONT_FAMILY_MAP = {
+  inter: {
+    '800': 'Inter_800ExtraBold',
+    '700': 'Inter_700Bold',
+    bold: 'Inter_700Bold',
+    '600': 'Inter_600SemiBold',
+    '500': 'Inter_500Medium',
+    default: 'Inter_400Regular',
+  },
+  lora: {
+    '700': 'Lora_700Bold',
+    bold: 'Lora_700Bold',
+    default: 'Lora_400Regular',
+  },
+  jetbrains: {
+    '700': 'JetBrainsMono_700Bold',
+    bold: 'JetBrainsMono_700Bold',
+    default: 'JetBrainsMono_400Regular',
+  },
+  roboto: {
+    '700': 'Roboto_700Bold',
+    bold: 'Roboto_700Bold',
+    '500': 'Roboto_500Medium',
+    default: 'Roboto_400Regular',
+  },
+  lato: {
+    '700': 'Lato_700Bold',
+    bold: 'Lato_700Bold',
+    default: 'Lato_400Regular',
+  },
+  montserrat: {
+    '700': 'Montserrat_700Bold',
+    bold: 'Montserrat_700Bold',
+    '600': 'Montserrat_600SemiBold',
+    '500': 'Montserrat_500Medium',
+    default: 'Montserrat_400Regular',
+  },
+  nunito: {
+    '700': 'Nunito_700Bold',
+    bold: 'Nunito_700Bold',
+    '600': 'Nunito_600SemiBold',
+    default: 'Nunito_400Regular',
+  },
+  poppins: {
+    '700': 'Poppins_700Bold',
+    bold: 'Poppins_700Bold',
+    '600': 'Poppins_600SemiBold',
+    '500': 'Poppins_500Medium',
+    default: 'Poppins_400Regular',
+  },
+  quicksand: {
+    '700': 'Quicksand_700Bold',
+    bold: 'Quicksand_700Bold',
+    '600': 'Quicksand_600SemiBold',
+    '500': 'Quicksand_500Medium',
+    default: 'Quicksand_400Regular',
+  },
+  oswald: {
+    '700': 'Oswald_700Bold',
+    bold: 'Oswald_700Bold',
+    '500': 'Oswald_500Medium',
+    default: 'Oswald_400Regular',
+  },
+  raleway: {
+    '700': 'Raleway_700Bold',
+    bold: 'Raleway_700Bold',
+    '600': 'Raleway_600SemiBold',
+    '500': 'Raleway_500Medium',
+    default: 'Raleway_400Regular',
+  },
+  ubuntu: {
+    '700': 'Ubuntu_700Bold',
+    bold: 'Ubuntu_700Bold',
+    '500': 'Ubuntu_500Medium',
+    default: 'Ubuntu_400Regular',
+  },
+  rubik: {
+    '700': 'Rubik_700Bold',
+    bold: 'Rubik_700Bold',
+    '600': 'Rubik_600SemiBold',
+    '500': 'Rubik_500Medium',
+    default: 'Rubik_400Regular',
+  },
+  'work-sans': {
+    '700': 'WorkSans_700Bold',
+    bold: 'WorkSans_700Bold',
+    '600': 'WorkSans_600SemiBold',
+    '500': 'WorkSans_500Medium',
+    default: 'WorkSans_400Regular',
+  },
+  'fira-sans': {
+    '700': 'FiraSans_700Bold',
+    bold: 'FiraSans_700Bold',
+    '600': 'FiraSans_600SemiBold',
+    '500': 'FiraSans_500Medium',
+    default: 'FiraSans_400Regular',
+  },
+  'playfair-display': {
+    '700': 'PlayfairDisplay_700Bold',
+    bold: 'PlayfairDisplay_700Bold',
+    '600': 'PlayfairDisplay_600SemiBold',
+    '500': 'PlayfairDisplay_500Medium',
+    default: 'PlayfairDisplay_400Regular',
+  },
+  merriweather: {
+    '700': 'Merriweather_700Bold',
+    bold: 'Merriweather_700Bold',
+    default: 'Merriweather_400Regular',
+  },
+  'eb-garamond': {
+    '700': 'EBGaramond_700Bold',
+    bold: 'EBGaramond_700Bold',
+    '600': 'EBGaramond_600SemiBold',
+    '500': 'EBGaramond_500Medium',
+    default: 'EBGaramond_400Regular',
+  },
+  'pt-serif': {
+    '700': 'PTSerif_700Bold',
+    bold: 'PTSerif_700Bold',
+    default: 'PTSerif_400Regular',
+  },
+  'noto-serif': {
+    '700': 'NotoSerif_700Bold',
+    bold: 'NotoSerif_700Bold',
+    default: 'NotoSerif_400Regular',
+  },
+  'libre-baskerville': {
+    '700': 'LibreBaskerville_700Bold',
+    bold: 'LibreBaskerville_700Bold',
+    default: 'LibreBaskerville_400Regular',
+  },
+  'cormorant-garamond': {
+    '700': 'CormorantGaramond_700Bold',
+    bold: 'CormorantGaramond_700Bold',
+    '600': 'CormorantGaramond_600SemiBold',
+    '500': 'CormorantGaramond_500Medium',
+    default: 'CormorantGaramond_400Regular',
+  },
+  'crimson-text': {
+    '700': 'CrimsonText_700Bold',
+    bold: 'CrimsonText_700Bold',
+    '600': 'CrimsonText_600SemiBold',
+    default: 'CrimsonText_400Regular',
+  },
+  'fira-code': {
+    '700': 'FiraCode_700Bold',
+    bold: 'FiraCode_700Bold',
+    '600': 'FiraCode_600SemiBold',
+    '500': 'FiraCode_500Medium',
+    default: 'FiraCode_400Regular',
+  },
+  'space-mono': {
+    '700': 'SpaceMono_700Bold',
+    bold: 'SpaceMono_700Bold',
+    default: 'SpaceMono_400Regular',
+  },
+  inconsolata: {
+    '700': 'Inconsolata_700Bold',
+    bold: 'Inconsolata_700Bold',
+    '600': 'Inconsolata_600SemiBold',
+    '500': 'Inconsolata_500Medium',
+    default: 'Inconsolata_400Regular',
+  },
+  'source-code-pro': {
+    '700': 'SourceCodePro_700Bold',
+    bold: 'SourceCodePro_700Bold',
+    '600': 'SourceCodePro_600SemiBold',
+    '500': 'SourceCodePro_500Medium',
+    default: 'SourceCodePro_400Regular',
+  },
+  caveat: {
+    '700': 'Caveat_700Bold',
+    bold: 'Caveat_700Bold',
+    '600': 'Caveat_600SemiBold',
+    '500': 'Caveat_500Medium',
+    default: 'Caveat_400Regular',
+  },
+  pacifico: {
+    default: 'Pacifico_400Regular',
+  },
+  'dancing-script': {
+    '700': 'DancingScript_700Bold',
+    bold: 'DancingScript_700Bold',
+    '600': 'DancingScript_600SemiBold',
+    '500': 'DancingScript_500Medium',
+    default: 'DancingScript_400Regular',
+  },
+};
+
+const resolveFontFamily = (family, weight) => {
+  if (!family || family === 'system') return undefined;
+  const familyMap = FONT_FAMILY_MAP[family];
+  if (!familyMap) return undefined;
+  return familyMap[weight] || familyMap.default;
+};
+
 export function AppText({ style, children, variant, ...props }) {
   const { fontFamily: globalFontFamily, typographyConfig } = useSettings();
   
   let targetFontFamily = globalFontFamily;
-  let variantStyle = {};
+  let variantStyle = null;
 
-  if (variant && typographyConfig[variant]) {
+  if (variant && typographyConfig && typographyConfig[variant]) {
     const config = typographyConfig[variant];
     if (config.fontFamily) {
       targetFontFamily = config.fontFamily;
     }
     variantStyle = {
       fontSize: config.fontSize,
-      fontWeight: config.fontWeight
+      fontWeight: config.fontWeight,
     };
     if (config.color) {
       variantStyle.color = config.color;
     }
   }
 
-  let cleanedStyle = { ...StyleSheet.flatten(style), ...variantStyle };
-  let weight = cleanedStyle.fontWeight ? cleanedStyle.fontWeight.toString() : '400';
+  const flattenedStyle = StyleSheet.flatten(style);
+  const cleanedStyle = variantStyle
+    ? { ...flattenedStyle, ...variantStyle }
+    : (flattenedStyle ? { ...flattenedStyle } : {});
 
-  let finalFontFamily = undefined; 
-
-  if (targetFontFamily === 'system') {
-    // do nothing
-  } else if (targetFontFamily === 'inter') {
-    if (weight === '800') finalFontFamily = 'Inter_800ExtraBold';
-    else if (weight === '700' || weight === 'bold') finalFontFamily = 'Inter_700Bold';
-    else if (weight === '600') finalFontFamily = 'Inter_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Inter_500Medium';
-    else finalFontFamily = 'Inter_400Regular';
-  } else if (targetFontFamily === 'lora') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Lora_700Bold';
-    else finalFontFamily = 'Lora_400Regular';
-  } else if (targetFontFamily === 'jetbrains') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'JetBrainsMono_700Bold';
-    else finalFontFamily = 'JetBrainsMono_400Regular';
-  } else if (targetFontFamily === 'roboto') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Roboto_700Bold';
-    else if (weight === '500') finalFontFamily = 'Roboto_500Medium';
-    else finalFontFamily = 'Roboto_400Regular';
-  } else if (targetFontFamily === 'lato') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Lato_700Bold';
-    else finalFontFamily = 'Lato_400Regular';
-  } else if (targetFontFamily === 'montserrat') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Montserrat_700Bold';
-    else if (weight === '600') finalFontFamily = 'Montserrat_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Montserrat_500Medium';
-    else finalFontFamily = 'Montserrat_400Regular';
-  } else if (targetFontFamily === 'nunito') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Nunito_700Bold';
-    else if (weight === '600') finalFontFamily = 'Nunito_600SemiBold';
-    else finalFontFamily = 'Nunito_400Regular';
-  } else if (targetFontFamily === 'poppins') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Poppins_700Bold';
-    else if (weight === '600') finalFontFamily = 'Poppins_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Poppins_500Medium';
-    else finalFontFamily = 'Poppins_400Regular';
-  } else if (targetFontFamily === 'quicksand') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Quicksand_700Bold';
-    else if (weight === '600') finalFontFamily = 'Quicksand_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Quicksand_500Medium';
-    else finalFontFamily = 'Quicksand_400Regular';
-  } else if (targetFontFamily === 'oswald') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Oswald_700Bold';
-    else if (weight === '500') finalFontFamily = 'Oswald_500Medium';
-    else finalFontFamily = 'Oswald_400Regular';
-  } else if (targetFontFamily === 'raleway') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Raleway_700Bold';
-    else if (weight === '600') finalFontFamily = 'Raleway_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Raleway_500Medium';
-    else finalFontFamily = 'Raleway_400Regular';
-  } else if (targetFontFamily === 'ubuntu') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Ubuntu_700Bold';
-    else if (weight === '500') finalFontFamily = 'Ubuntu_500Medium';
-    else finalFontFamily = 'Ubuntu_400Regular';
-  } else if (targetFontFamily === 'rubik') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Rubik_700Bold';
-    else if (weight === '600') finalFontFamily = 'Rubik_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Rubik_500Medium';
-    else finalFontFamily = 'Rubik_400Regular';
-  } else if (targetFontFamily === 'work-sans') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'WorkSans_700Bold';
-    else if (weight === '600') finalFontFamily = 'WorkSans_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'WorkSans_500Medium';
-    else finalFontFamily = 'WorkSans_400Regular';
-  } else if (targetFontFamily === 'fira-sans') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'FiraSans_700Bold';
-    else if (weight === '600') finalFontFamily = 'FiraSans_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'FiraSans_500Medium';
-    else finalFontFamily = 'FiraSans_400Regular';
-  } else if (targetFontFamily === 'playfair-display') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'PlayfairDisplay_700Bold';
-    else if (weight === '600') finalFontFamily = 'PlayfairDisplay_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'PlayfairDisplay_500Medium';
-    else finalFontFamily = 'PlayfairDisplay_400Regular';
-  } else if (targetFontFamily === 'merriweather') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Merriweather_700Bold';
-    else finalFontFamily = 'Merriweather_400Regular';
-  } else if (targetFontFamily === 'eb-garamond') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'EBGaramond_700Bold';
-    else if (weight === '600') finalFontFamily = 'EBGaramond_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'EBGaramond_500Medium';
-    else finalFontFamily = 'EBGaramond_400Regular';
-  } else if (targetFontFamily === 'pt-serif') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'PTSerif_700Bold';
-    else finalFontFamily = 'PTSerif_400Regular';
-  } else if (targetFontFamily === 'noto-serif') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'NotoSerif_700Bold';
-    else finalFontFamily = 'NotoSerif_400Regular';
-  } else if (targetFontFamily === 'libre-baskerville') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'LibreBaskerville_700Bold';
-    else finalFontFamily = 'LibreBaskerville_400Regular';
-  } else if (targetFontFamily === 'cormorant-garamond') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'CormorantGaramond_700Bold';
-    else if (weight === '600') finalFontFamily = 'CormorantGaramond_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'CormorantGaramond_500Medium';
-    else finalFontFamily = 'CormorantGaramond_400Regular';
-  } else if (targetFontFamily === 'crimson-text') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'CrimsonText_700Bold';
-    else if (weight === '600') finalFontFamily = 'CrimsonText_600SemiBold';
-    else finalFontFamily = 'CrimsonText_400Regular';
-  } else if (targetFontFamily === 'fira-code') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'FiraCode_700Bold';
-    else if (weight === '600') finalFontFamily = 'FiraCode_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'FiraCode_500Medium';
-    else finalFontFamily = 'FiraCode_400Regular';
-  } else if (targetFontFamily === 'space-mono') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'SpaceMono_700Bold';
-    else finalFontFamily = 'SpaceMono_400Regular';
-  } else if (targetFontFamily === 'inconsolata') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'Inconsolata_700Bold';
-    else if (weight === '600') finalFontFamily = 'Inconsolata_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Inconsolata_500Medium';
-    else finalFontFamily = 'Inconsolata_400Regular';
-  } else if (targetFontFamily === 'source-code-pro') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'SourceCodePro_700Bold';
-    else if (weight === '600') finalFontFamily = 'SourceCodePro_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'SourceCodePro_500Medium';
-    else finalFontFamily = 'SourceCodePro_400Regular';
-  } else if (targetFontFamily === 'caveat') {
-    if (weight === '700' || weight === 'bold') finalFontFamily = 'Caveat_700Bold';
-    else if (weight === '600') finalFontFamily = 'Caveat_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'Caveat_500Medium';
-    else finalFontFamily = 'Caveat_400Regular';
-  } else if (targetFontFamily === 'pacifico') {
-    finalFontFamily = 'Pacifico_400Regular';
-  } else if (targetFontFamily === 'dancing-script') {
-if (weight === '700' || weight === 'bold') finalFontFamily = 'DancingScript_700Bold';
-    else if (weight === '600') finalFontFamily = 'DancingScript_600SemiBold';
-    else if (weight === '500') finalFontFamily = 'DancingScript_500Medium';
-    else finalFontFamily = 'DancingScript_400Regular';
-  }
-  // If targetFontFamily === 'system', finalFontFamily remains undefined, forcing native system font.
+  const weight = cleanedStyle.fontWeight ? cleanedStyle.fontWeight.toString() : '400';
+  const finalFontFamily = resolveFontFamily(targetFontFamily, weight);
 
   if (finalFontFamily) {
     cleanedStyle.fontFamily = finalFontFamily;

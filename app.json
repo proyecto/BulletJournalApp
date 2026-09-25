@@ -1,20 +1,30 @@
 {
   "expo": {
-    "name": "BulletJournalApp",
+    "name": "Punteo",
     "slug": "BulletJournalApp",
-    "version": "1.0.7",
+    "version": "2.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/blank-splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "platforms": [
-      "android"
+      "android",
+      "ios"
     ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rafael.punteo"
+    },
     "android": {
-      "package": "com.rafael.bulletjournalapp",
-      "versionCode": 8,
+      "package": "com.rafael.punteo",
+      "versionCode": 11,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -26,9 +36,25 @@
       }
     },
     "plugins": [
-      "@react-native-community/datetimepicker",
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker",
+      "expo-sharing",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/blank-splash.png",
+          "backgroundColor": "#FFFFFF",
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ]
     ]
   }
 }

@@ -4,7 +4,7 @@
  * 100% integrado con el sistema de diseño, temas (claro/oscuro) y tipografía de la app.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -32,13 +32,116 @@ const MONTH_NAMES_EN = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const ITEM_HEIGHT = 40;
+const VISIBLE_ITEMS = 3;
+
+const HOURS_ARRAY = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES_ARRAY = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+/**
+ * Componente Rueda Giratoria de selección (Wheel Picker) vertical para React Native.
+ */
+function WheelColumn({ items, value, onChange, theme }) {
+  const scrollViewRef = useRef(null);
+
+  const selectedIndex = useMemo(() => {
+    const idx = items.indexOf(value);
+    return idx >= 0 ? idx : 0;
+  }, [items, value]);
+
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({
+        y: selectedIndex * ITEM_HEIGHT,
+        animated: true,
+      });
+    }
+  }, [selectedIndex]);
+
+  const handleScrollEnd = (e) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(items.length - 1, index));
+    if (items[clampedIndex] !== value) {
+      onChange(items[clampedIndex]);
+    }
+  };
+
+  return (
+    <View style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS, width: 68, overflow: 'hidden', position: 'relative' }}>
+      {/* Indicador visual de elemento seleccionado (Caja central) */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: ITEM_HEIGHT,
+          left: 0,
+          right: 0,
+          height: ITEM_HEIGHT,
+          borderTopWidth: 1.5,
+          borderBottomWidth: 1.5,
+          borderColor: theme.text,
+          backgroundColor: theme.inputBackground,
+          borderRadius: 10,
+        }}
+      />
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleScrollEnd}
+        contentContainerStyle={{
+          paddingVertical: ITEM_HEIGHT,
+        }}
+      >
+        {items.map((item, idx) => {
+          const isSelected = item === value;
+          return (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.7}
+              style={{
+                height: ITEM_HEIGHT,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              onPress={() => {
+                scrollViewRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
+                onChange(item);
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: isSelected ? 20 : 16,
+                  fontWeight: isSelected ? '700' : '400',
+                  color: isSelected ? theme.text : theme.textSecondary + '70',
+                }}
+              >
+                {item}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const DAY_NAMES_ES_MON = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const DAY_NAMES_EN_MON = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+const DAY_NAMES_ES_SUN = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const DAY_NAMES_EN_SUN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
 export default function CustomDatePickerModal({
   visible,
   selectedDate,
+  selectedTime: initialSelectedTime = null,
   onSelectDate,
   onClose,
 }) {
-  const { theme, language, timezone } = useSettings();
+  const { theme, language, timezone, firstDayOfWeek = 'monday' } = useSettings();
   const insets = useSafeAreaInsets();
 
   // Función segura para parsear cadenas 'YYYY-MM-DD' o Date objects sin desfase de huso horario
@@ -58,6 +161,7 @@ export default function CustomDatePickerModal({
   const initialDate = useMemo(() => parseSafeDate(selectedDate), [selectedDate]);
 
   const [tempDate, setTempDate] = useState(initialDate);
+  const [tempTime, setTempTime] = useState(initialSelectedTime);
   // Mes y año visualizados en el calendario (1er día de ese mes)
   const [viewingMonth, setViewingMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
 
@@ -65,9 +169,10 @@ export default function CustomDatePickerModal({
     if (visible) {
       const d = parseSafeDate(selectedDate);
       setTempDate(d);
+      setTempTime(initialSelectedTime || null);
       setViewingMonth(new Date(d.getFullYear(), d.getMonth(), 1));
     }
-  }, [visible, selectedDate]);
+  }, [visible, selectedDate, initialSelectedTime]);
 
   const todayStr = getFormattedDate(new Date(), timezone);
   const tempDateStr = getFormattedDate(tempDate, timezone);
@@ -135,9 +240,14 @@ export default function CustomDatePickerModal({
 
     // Primer día del mes
     const firstDay = new Date(year, month, 1);
-    // Día de la semana en formato ISO (0 = Lunes, 6 = Domingo)
-    let startDayOfWeek = firstDay.getDay() - 1;
-    if (startDayOfWeek === -1) startDayOfWeek = 6;
+    
+    let startDayOfWeek = 0;
+    if (firstDayOfWeek === 'sunday') {
+      startDayOfWeek = firstDay.getDay(); // 0 = Domingo, 1 = Lunes ...
+    } else {
+      startDayOfWeek = firstDay.getDay() - 1;
+      if (startDayOfWeek === -1) startDayOfWeek = 6;
+    }
 
     // Total de días en el mes actual
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -181,7 +291,7 @@ export default function CustomDatePickerModal({
     }
 
     return cells;
-  }, [viewingMonth, timezone]);
+  }, [viewingMonth, timezone, firstDayOfWeek]);
 
   const handleSelectShortcut = (date) => {
     setTempDate(date);
@@ -196,12 +306,14 @@ export default function CustomDatePickerModal({
   };
 
   const handleConfirm = () => {
-    onSelectDate(tempDate);
+    onSelectDate(tempDate, tempTime);
     onClose();
   };
 
   const monthNames = language === 'es' ? MONTH_NAMES_ES : MONTH_NAMES_EN;
-  const dayHeaders = language === 'es' ? DAY_NAMES_ES : DAY_NAMES_EN;
+  const dayHeaders = firstDayOfWeek === 'sunday'
+    ? (language === 'es' ? DAY_NAMES_ES_SUN : DAY_NAMES_EN_SUN)
+    : (language === 'es' ? DAY_NAMES_ES_MON : DAY_NAMES_EN_MON);
 
   return (
     <Modal
@@ -231,13 +343,14 @@ export default function CustomDatePickerModal({
               <View style={styles.header}>
                 <View>
                   <Text variant="h2" style={[styles.headerTitle, { color: theme.text }]}>
-                    {language === 'es' ? 'Seleccionar fecha' : 'Select date'}
+                    {language === 'es' ? 'Seleccionar fecha u hora' : 'Select date or time'}
                   </Text>
                   <Text variant="caption" style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
                     {tempDate.toLocaleDateString(
                       language === 'es' ? 'es-ES' : 'en-US',
                       { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
                     )}
+                    {tempTime ? ` · ${tempTime}` : ''}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -346,6 +459,85 @@ export default function CustomDatePickerModal({
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+
+              {/* Sección de Hora Específica (Ruedas Giratorias 00..23 / 00..59) */}
+              <View style={styles.timeSectionWrapper}>
+                <View style={styles.timeSectionHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="time-outline" size={18} color={theme.text} />
+                    <Text variant="body" style={{ fontWeight: '600', color: theme.text }}>
+                      {language === 'es' ? 'Hora específica' : 'Specific time'}
+                    </Text>
+                  </View>
+                  {tempTime ? (
+                    <TouchableOpacity
+                      onPress={() => setTempTime(null)}
+                      style={[styles.clearTimeBadge, { backgroundColor: theme.inputBackground }]}
+                    >
+                      <Text variant="caption" style={{ color: theme.text, fontWeight: '700' }}>
+                        {tempTime}
+                      </Text>
+                      <Ionicons name="close-circle" size={16} color={theme.textSecondary} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => {
+                        const now = new Date();
+                        const h = String(now.getHours()).padStart(2, '0');
+                        const m = String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0');
+                        setTempTime(`${h}:${m}`);
+                      }}
+                      style={[styles.activateTimeButton, { backgroundColor: theme.inputBackground }]}
+                    >
+                      <Ionicons name="add" size={14} color={theme.text} />
+                      <Text variant="caption" style={{ color: theme.text, fontWeight: '600' }}>
+                        {language === 'es' ? 'Añadir hora' : 'Add time'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {tempTime ? (
+                  <View style={styles.pickerAndPresetsRow}>
+                    {/* Ruedas Giratorias para Hora (00..23) y Minutos (00..59) */}
+                    <View style={styles.wheelContainer}>
+                      <View style={styles.wheelColumnLabelWrapper}>
+                        <Text variant="micro" style={{ color: theme.textSecondary, fontWeight: '600' }}>
+                          {language === 'es' ? 'HORA' : 'HOUR'}
+                        </Text>
+                        <WheelColumn
+                          items={HOURS_ARRAY}
+                          value={tempTime.split(':')[0] || '09'}
+                          onChange={(h) => {
+                            const m = tempTime.split(':')[1] || '00';
+                            setTempTime(`${h}:${m}`);
+                          }}
+                          theme={theme}
+                        />
+                      </View>
+
+                      <Text style={{ fontSize: 24, fontWeight: '700', color: theme.text, marginTop: 16 }}>
+                        :
+                      </Text>
+
+                      <View style={styles.wheelColumnLabelWrapper}>
+                        <Text variant="micro" style={{ color: theme.textSecondary, fontWeight: '600' }}>
+                          {language === 'es' ? 'MIN' : 'MIN'}
+                        </Text>
+                        <WheelColumn
+                          items={MINUTES_ARRAY}
+                          value={tempTime.split(':')[1] || '00'}
+                          onChange={(m) => {
+                            const h = tempTime.split(':')[0] || '09';
+                            setTempTime(`${h}:${m}`);
+                          }}
+                          theme={theme}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               {/* Botón de Confirmación */}
@@ -482,8 +674,59 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 15,
   },
+  timeSectionWrapper: {
+    marginTop: 4,
+    marginBottom: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  timeSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  activateTimeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  clearTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  pickerAndPresetsRow: {
+    alignItems: 'center',
+  },
+  wheelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 4,
+  },
+  wheelColumnLabelWrapper: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  timeChipsContent: {
+    gap: 6,
+  },
+  timeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
   footer: {
-    paddingTop: 8,
+    paddingTop: 4,
   },
   confirmButton: {
     height: 48,

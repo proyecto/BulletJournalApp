@@ -1,21 +1,42 @@
 /**
  * @screen DailyLogScreen
- * @description Pantalla principal del Bullet Journal: el "Daily Log".
+ * @pattern Facade Consumer + Observer Consumer + Strategy Consumer
  *
- * Muestra las entradas del día seleccionado, aplica el traspaso automático
- * de tareas abiertas a HOY, registra la fecha de completado en el historial,
- * permite añadir nuevas entradas y reordenarlas mediante slots animados.
+ * ─── RESPONSABILIDAD ─────────────────────────────────────────────────────────
+ * Pantalla principal del Bullet Journal: el "Daily Log".
+ *
+ * Arquitectura en capas:
+ *   ┌──────────────────────────────┐
+ *   │      DailyLogScreen.js       │  ← UI (esta pantalla)
+ *   ├──────────────────────────────┤
+ *   │  useDragAndDrop (Hook)       │  ← Lógica de interacción gestual
+ *   ├──────────────────────────────┤
+ *   │  DailyLogService (Facade)    │  ← Lógica de negocio del diario
+ *   ├──────────────────────────────┤
+ *   │  JournalContext (Facade)     │  ← API de negocio simplificada
+ *   ├──────────────────────────────┤
+ *   │  EntryRepository             │  ← Acceso a datos (SQLite)
+ *   └──────────────────────────────┘
+ *
+ * ─── FUNCIONALIDADES ─────────────────────────────────────────────────────────
+ * - Muestra las entradas del día seleccionado (tareas, eventos, notas).
+ * - Aplica el traspaso automático de tareas abiertas de días anteriores a HOY.
+ * - Permite navegar entre días (← →).
+ * - Registra la fecha de completado en el historial (completedAt).
+ * - Permite añadir nuevas entradas con tipo configurable (tarea/evento/nota).
+ * - Permite reordenar entradas mediante drag & drop animado.
+ * - Permite mover una entrada a otro día mediante pulsación larga.
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
   TouchableOpacity,
   ScrollView,
   Animated,
-  PanResponder,
   Alert,
+  Modal,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,93 +46,220 @@ import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import SmartInput from '../components/SmartInput';
 import { createDailyEntry } from '../factories/EntryFactory';
-import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import {
+  filterEntriesForLogMode,
+  getEntryIcon,
+  isEntryCompleted,
+  getSignifierSymbol,
+  isEntryMigrated,
+} from '../services/DailyLogService';
+import { useDragAndDrop } from '../hooks/useDragAndDrop';
+import { getFormattedWeekSubtitle, getFormattedMonthSubtitle } from '../utils/dateUtils';
+import SearchModal from '../components/SearchModal';
+import EntryCard from '../components/EntryCard';
 
-// Dimensiones fijas de cada "slot" para cálculo matemático perfecto
+// ─── Constantes de Layout ─────────────────────────────────────────────────────
+
+/**
+ * Dimensiones fijas de cada "slot" para el cálculo determinista de posiciones.
+ * SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP  →  unidad de rejilla para el drag.
+ */
 const CARD_HEIGHT = 56;
-const CARD_GAP = 10;
+const CARD_GAP    = 10;
 const SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP;
 
-export default function DailyLogScreen() {
+// ─── Pantalla Principal ───────────────────────────────────────────────────────
+
+/**
+ * Pantalla "Daily Log / Week Log / Month Log" del Bullet Journal.
+ *
+ * @param {Object} props
+ * @param {Object} [props.navigation] - Objeto de navegación.
+ * @returns {JSX.Element} La pantalla renderizada.
+ */
+export default function DailyLogScreen({ navigation }) {
+
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
-  const { entries, addEntry, toggleStatus, deleteEntry, updateEntryDate, reorderEntries } = useJournal();
-  const { theme, language, timezone } = useSettings();
+
+  // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
+
+  const {
+    entries,
+    addEntry,
+    toggleStatus,
+    toggleSignifier,
+    deleteEntry,
+    updateEntryDate,
+    updateEntryDateTime,
+    reorderEntries,
+  } = useJournal();
+  const { theme, language, timezone, firstDayOfWeek = 'monday' } = useSettings();
   const insets = useSafeAreaInsets();
 
   // ── Estado local de la pantalla ──────────────────────────────────────────────
-  const [inputText, setInputText] = useState('');
-  const [selectedType, setSelectedType] = useState('task');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [reschedulingItem, setReschedulingItem] = useState(null);
-  const [currentLogDate, setCurrentLogDate] = useState(new Date());
-  const [draggingIndex, setDraggingIndex] = useState(null);
 
-  // Fechas en formato 'YYYY-MM-DD'
+  /** Modo de log activo ('daily' | 'week' | 'month') */
+  const [logMode, setLogMode] = useState('daily');
+
+  /** Visibilidad del desplegable para cambiar de modo de log */
+  const [showLogModeMenu, setShowLogModeMenu] = useState(false);
+
+  /** Visibilidad del buscador global */
+  const [showSearchModal, setShowSearchModal] = useState(false);
+
+  /** Texto del campo de nueva entrada */
+  const [inputText, setInputText] = useState('');
+
+  /** Tipo de entrada seleccionado en el selector del SmartInput */
+  const [selectedType, setSelectedType] = useState('task');
+
+  /** Significador purista seleccionado para la nueva entrada ('priority' | 'inspiration' | null) */
+  const [selectedSignifier, setSelectedSignifier] = useState(null);
+
+  /** Fecha seleccionada para la nueva entrada (puede diferir del día visualizado) */
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  /** Hora seleccionada para la nueva entrada ('HH:mm' | null) */
+  const [selectedTime, setSelectedTime] = useState(null);
+
+  /** Controla la visibilidad del DatePicker para crear nueva entrada */
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  /** Entrada que el usuario quiere mover a otro día (pulsación larga) */
+  const [reschedulingItem, setReschedulingItem] = useState(null);
+
+  /** Fecha del día/semana/mes que se está visualizando actualmente */
+  const [currentLogDate, setCurrentLogDate] = useState(new Date());
+
+  // ── Fechas formateadas ────────────────────────────────────────────────────────
+
+  /** HOY en formato 'YYYY-MM-DD' (constante durante la sesión) */
   const todayStr = getFormattedDate(new Date(), timezone);
+
+  /** Fecha del día visualizado en formato 'YYYY-MM-DD' */
   const currentLogDateStr = getFormattedDate(currentLogDate, timezone);
 
-  // Entradas filtradas para el día visualizado
-  const dailyLogEntries = filterEntriesForDay(entries, currentLogDateStr, todayStr);
+  // ── Filtrado de entradas (Facade a DailyLogService) ──────────────────────────
 
-  // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
-  const [orderedEntries, setOrderedEntries] = useState(dailyLogEntries);
+  /**
+   * Delegamos el filtrado al servicio `DailyLogService`.
+   * El servicio aplica las reglas de negocio del Bullet Journal para Daily, Week y Month log.
+   * `useMemo` evita recalcular el filtrado y ordenamiento de todas las tareas al teclear en el input.
+   */
+  const currentLogEntries = useMemo(() => {
+    return filterEntriesForLogMode(entries, currentLogDateStr, todayStr, logMode, firstDayOfWeek);
+  }, [entries, currentLogDateStr, todayStr, logMode, firstDayOfWeek]);
+
+  // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
+
+  const {
+    orderedItems: orderedEntries,
+    setOrderedItems: setOrderedEntries,
+    draggingIndex,
+    itemAnimMap,
+    panResponders,
+    isDraggingRef,
+  } = useDragAndDrop({
+    items: currentLogEntries,
+    onReorder: reorderEntries,
+    slotHeight: SLOT_HEIGHT,
+  });
+
+  // ── Sincronización con el estado global (Observer) ───────────────────────────
 
   useEffect(() => {
     setSelectedDate(currentLogDate);
+    setSelectedTime(null);
   }, [currentLogDate]);
 
   useEffect(() => {
-    if (!isDraggingRef.current) {
+    if (isDraggingRef.current) return;
+
+    const isSame =
+      orderedEntries.length === currentLogEntries.length &&
+      orderedEntries.every(
+        (item, idx) =>
+          item.id        === currentLogEntries[idx]?.id        &&
+          item.status    === currentLogEntries[idx]?.status    &&
+          item.signifier === currentLogEntries[idx]?.signifier &&
+          item.text      === currentLogEntries[idx]?.text      &&
+          item.time      === currentLogEntries[idx]?.time      &&
+          item.date      === currentLogEntries[idx]?.date
+      );
+
+    if (!isSame) {
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
       });
-      setOrderedEntries(dailyLogEntries);
+      setOrderedEntries(currentLogEntries);
     }
-  }, [entries, currentLogDateStr, todayStr]);
+  }, [entries, currentLogDateStr, todayStr, logMode]);
 
-  // Mapa de valores animados estables vinculados directamente al ID único de cada entrada
-  const itemAnimMap = useRef({}).current;
+  // ── Handlers de Negocio ──────────────────────────────────────────────────────
 
-  // Asegurar que cada elemento tenga siempre su propio Animated.Value estable
-  orderedEntries.forEach((item) => {
-    if (!itemAnimMap[item.id]) {
-      itemAnimMap[item.id] = new Animated.Value(0);
-    }
-  });
-
-  // Referencias para controlar el estado de arrastre sin desfases de closure
-  const isDraggingRef = useRef(false);
-  const draggingIndexRef = useRef(null);
-  const targetIndexRef = useRef(null);
-  const currentDyRef = useRef(0);
-  const entriesRef = useRef(orderedEntries);
-  entriesRef.current = orderedEntries;
-
-  // ── Handlers ──────────────────────────────────────────────────────────────────
-
-  const navigateDay = (direction) => {
+  /**
+   * Navega según el modo activo (-1 o +1 unidad: días, semanas o meses).
+   * @param {-1 | 1} direction - Dirección de la navegación.
+   */
+  const navigatePeriod = (direction) => {
     const newDate = new Date(currentLogDate);
-    newDate.setDate(newDate.getDate() + direction);
+    if (logMode === 'week') {
+      newDate.setDate(newDate.getDate() + direction * 7);
+    } else if (logMode === 'month') {
+      newDate.setMonth(newDate.getMonth() + direction);
+    } else {
+      newDate.setDate(newDate.getDate() + direction);
+    }
     setCurrentLogDate(newDate);
+  };
+
+  /**
+   * Título principal según el modo activo e idioma.
+   */
+  const getLogTitle = () => {
+    if (logMode === 'week') {
+      return language === 'es' ? 'Log Semanal' : 'Week Log';
+    }
+    if (logMode === 'month') {
+      return language === 'es' ? 'Log Mensual' : 'Month Log';
+    }
+    return language === 'es' ? 'Log Diario' : 'Daily Log';
+  };
+
+  /**
+   * Subtítulo con rango de fechas o nombre de fecha.
+   */
+  const getLogSubtitle = () => {
+    if (logMode === 'week') {
+      return getFormattedWeekSubtitle(currentLogDate, language, firstDayOfWeek);
+    }
+    if (logMode === 'month') {
+      return getFormattedMonthSubtitle(currentLogDate, language);
+    }
+    return currentLogDate.toLocaleDateString(
+      language === 'es' ? 'es-ES' : 'en-US',
+      { weekday: 'long', month: 'long', day: 'numeric' }
+    );
   };
 
   const handleAddEntry = () => {
     if (!inputText.trim()) return;
 
-    // EntryFactory.createDailyEntry garantiza la estructura correcta del objeto con order_index
     const newEntry = createDailyEntry(
       inputText,
       selectedType,
       selectedDate,
       timezone,
-      orderedEntries.length
+      orderedEntries.length,
+      selectedSignifier,
+      selectedTime
     );
     addEntry(newEntry);
 
-    // Reset del texto del input y de la fecha seleccionada
     setInputText('');
+    setSelectedSignifier(null);
+    setSelectedTime(null);
     setSelectedDate(currentLogDate);
   };
 
@@ -119,10 +267,10 @@ export default function DailyLogScreen() {
     setReschedulingItem(item);
   };
 
-  const handleMoveEntryDate = (newDate) => {
+  const handleMoveEntryDate = (newDate, newTime) => {
     if (!reschedulingItem) return;
     const newDateStr = getFormattedDate(newDate, timezone);
-    updateEntryDate(reschedulingItem.id, newDateStr);
+    updateEntryDateTime(reschedulingItem.id, newDateStr, newTime);
     setReschedulingItem(null);
   };
 
@@ -144,188 +292,76 @@ export default function DailyLogScreen() {
   };
 
   /**
-   * Recalcula y anima las posiciones de todos los slots no arrastrados
-   * abriendo el hueco en 'targetIdx' inmediatamente mediante cálculo de rango.
+   * Navega o salta a la entrada seleccionada desde el buscador.
    */
-  const updateSlots = (fromIdx, toIdx) => {
-    const total = entriesRef.current.length;
-    for (let j = 0; j < total; j++) {
-      if (j === fromIdx) continue;
-
-      const item = entriesRef.current[j];
-      if (!item || !itemAnimMap[item.id]) continue;
-
-      // Rango del elemento entre los restantes (0 .. total-2)
-      const rank = j < fromIdx ? j : j - 1;
-      // Slot asignado cuando el hueco está en toIdx
-      const assignedSlot = rank < toIdx ? rank : rank + 1;
-      // Desplazamiento respecto a su posición de reposo
-      const targetOffset = (assignedSlot - j) * SLOT_HEIGHT;
-
-      // Detener cualquier animación previa para evitar que el spring nativo continúe de fondo
-      itemAnimMap[item.id].stopAnimation();
-      Animated.spring(itemAnimMap[item.id], {
-        toValue: targetOffset,
-        friction: 8,
-        tension: 80,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
-
-  /**
-   * Finaliza el arrastre asentando el elemento en su slot de destino y persistiendo el nuevo orden.
-   */
-  const finishDrag = () => {
-    if (!isDraggingRef.current || draggingIndexRef.current === null) return;
-
-    const fromIdx = draggingIndexRef.current;
-    const toIdx = targetIndexRef.current !== null ? targetIndexRef.current : fromIdx;
-    const draggedItem = entriesRef.current[fromIdx];
-
-    let finalized = false;
-    const finalize = () => {
-      if (finalized) return;
-      finalized = true;
-
-      // 1. Detener todas las animaciones nativas activas y resetear sus valores a 0
-      Object.values(itemAnimMap).forEach((anim) => {
-        anim.stopAnimation();
-        anim.setValue(0);
+  const handleSelectSearchResult = (item) => {
+    if (item.listId && navigation) {
+      navigation.navigate('Listas', {
+        screen: 'ListDetail',
+        params: { list: { id: item.listId, title: item.listName || '' } },
       });
-
-      // 2. Si cambió de posición, calculamos y actualizamos el estado local atómicamente
-      if (fromIdx !== toIdx) {
-        const nextEntries = [...entriesRef.current];
-        const [movedItem] = nextEntries.splice(fromIdx, 1);
-        nextEntries.splice(toIdx, 0, movedItem);
-
-        // Actualizar el estado local y persistir
-        setOrderedEntries(nextEntries);
-        reorderEntries(nextEntries);
-      }
-
-      // 3. Resetear estado de arrastre
-      currentDyRef.current = 0;
-      draggingIndexRef.current = null;
-      targetIndexRef.current = null;
-      isDraggingRef.current = false;
-      setDraggingIndex(null);
-    };
-
-    const finalSlotDelta = (toIdx - fromIdx) * SLOT_HEIGHT;
-    const currentVal = currentDyRef.current || 0;
-
-    // Si apenas se movió del slot objetivo o no existe la tarjeta, finalizar de inmediato
-    if (!draggedItem || !itemAnimMap[draggedItem.id] || Math.abs(currentVal - finalSlotDelta) < 3) {
-      finalize();
-      return;
+    } else if (item.date || item.completedAt) {
+      const targetDate = item.date || item.completedAt;
+      setCurrentLogDate(new Date(targetDate));
+      setLogMode('daily');
     }
-
-    // Temporizador de seguridad: asegura que el estado se libere siempre aunque el native driver no emita callback
-    const safetyTimer = setTimeout(finalize, 250);
-
-    itemAnimMap[draggedItem.id].stopAnimation();
-    Animated.spring(itemAnimMap[draggedItem.id], {
-      toValue: finalSlotDelta,
-      friction: 8,
-      tension: 90,
-      useNativeDriver: true,
-    }).start(() => {
-      clearTimeout(safetyTimer);
-      finalize();
-    });
   };
 
-  // PanResponders individuales asociados al botón de arrastre de cada fila
-  const panResponders = useMemo(() => {
-    return orderedEntries.map((item, index) =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 2,
-        onPanResponderTerminationRequest: () => false, // Impide que ScrollView u otros contenedores aborten el gesto
-        onPanResponderGrant: () => {
-          isDraggingRef.current = true;
-          draggingIndexRef.current = index;
-          targetIndexRef.current = index;
-          currentDyRef.current = 0;
-
-          // Detener animaciones previas en todos los elementos
-          Object.values(itemAnimMap).forEach((anim) => anim.stopAnimation());
-
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(0);
-          }
-          setDraggingIndex(index);
-          updateSlots(index, index);
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const total = entriesRef.current.length;
-          const minDy = -index * SLOT_HEIGHT;
-          const maxDy = (total - 1 - index) * SLOT_HEIGHT;
-
-          // Clampear el desplazamiento estrictamente dentro del rango de los slots disponibles
-          const clampedDy = Math.max(minDy - 6, Math.min(maxDy + 6, gestureState.dy));
-          currentDyRef.current = clampedDy;
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(clampedDy);
-          }
-
-          const rawTarget = Math.round(index + clampedDy / SLOT_HEIGHT);
-          const clampedTarget = Math.max(0, Math.min(total - 1, rawTarget));
-
-          if (clampedTarget !== targetIndexRef.current) {
-            targetIndexRef.current = clampedTarget;
-            updateSlots(index, clampedTarget);
-          }
-        },
-        onPanResponderRelease: () => {
-          finishDrag();
-        },
-        onPanResponderTerminate: () => {
-          finishDrag();
-        },
-      })
-    );
-  }, [orderedEntries.length, orderedEntries]);
-
-  const isViewingToday = currentLogDateStr === todayStr;
+  // ── Renderizado ───────────────────────────────────────────────────────────────
 
   return (
     <View
       style={[
         styles.safeArea,
-        { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) },
+        { backgroundColor: theme.background, paddingTop: insets.top },
       ]}
     >
-      {/* Cabecera con navegación de días */}
+      {/* ── Cabecera con navegación de días ──────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerNav}>
-          <TouchableOpacity onPress={() => navigateDay(-1)} style={styles.navButton}>
+          <TouchableOpacity onPress={() => navigatePeriod(-1)} style={styles.navButton}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
 
           <View style={styles.headerTitles}>
-            <Text variant="h1" style={[styles.title, { color: theme.text }]}>
-              {isViewingToday ? 'Daily Log' : currentLogDateStr}
-            </Text>
+            <TouchableOpacity
+              style={[
+                styles.titleSelector,
+                { backgroundColor: theme.inputBackground }
+              ]}
+              onPress={() => setShowLogModeMenu(prev => !prev)}
+              activeOpacity={0.6}
+              hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+              accessibilityLabel={language === 'es' ? 'Cambiar vista de log' : 'Change log view'}
+            >
+              <Text variant="h1" style={[styles.title, { color: theme.text }]}>
+                {getLogTitle()}
+              </Text>
+              <Ionicons
+                name={showLogModeMenu ? "caret-up" : "caret-down"}
+                size={14}
+                color={theme.text}
+                style={{ marginLeft: 8 }}
+              />
+            </TouchableOpacity>
+
             <Text variant="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {currentLogDate.toLocaleDateString(
-                language === 'es' ? 'es-ES' : 'en-US',
-                { weekday: 'long', month: 'long', day: 'numeric' }
-              )}
+              {getLogSubtitle()}
             </Text>
           </View>
 
-          <TouchableOpacity onPress={() => navigateDay(1)} style={styles.navButton}>
-            <Ionicons name="chevron-forward" size={24} color={theme.text} />
-          </TouchableOpacity>
+          <View style={styles.rightHeaderButtons}>
+            <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.navButton}>
+              <Ionicons name="search" size={22} color={theme.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigatePeriod(1)} style={styles.navButton}>
+              <Ionicons name="chevron-forward" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* Lista de entradas del día con ordenación por slots */}
+      {/* ── Lista de entradas con drag & drop animado ────────────────────── */}
       <View style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.listContent}
@@ -333,106 +369,50 @@ export default function DailyLogScreen() {
           scrollEnabled={draggingIndex === null}
         >
           {orderedEntries.length === 0 ? (
+            // ── Estado vacío ────────────────────────────────────────────────
             <View style={styles.emptyContainer}>
               <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
-                {language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.'}
+                {logMode === 'week'
+                  ? (language === 'es' ? 'Ningún registro en esta semana.' : 'No entries in this week.')
+                  : logMode === 'month'
+                  ? (language === 'es' ? 'Ningún registro en este mes.' : 'No entries in this month.')
+                  : (language === 'es' ? 'Ningún registro en este día.' : 'No entries on this day.')}
               </Text>
             </View>
           ) : (
+            // ── Tarjetas de entrada (con drag & drop animado) ───────────────
             orderedEntries.map((item, index) => {
-              const isDragging = draggingIndex === index;
-              const translateY = itemAnimMap[item.id] || 0;
-              const isCompleted = isEntryCompleted(item, todayStr);
-              const iconName = getEntryIcon(item, todayStr);
-              const iconColor = isCompleted ? theme.textCompleted : theme.text;
+              const isDragging    = draggingIndex === index;
+              const isDraggingAny = draggingIndex !== null;
 
               return (
                 <Animated.View
                   key={item.id}
                   style={[
                     styles.slotContainer,
+                    isDraggingAny && itemAnimMap[item.id]
+                      ? { transform: [{ translateY: itemAnimMap[item.id] }] }
+                      : null,
                     {
-                      transform: [{ translateY }],
-                      zIndex: isDragging ? 999 : 1,
-                      elevation: isDragging ? 8 : 1,
+                      zIndex:    isDragging ? 999 : 1,
+                      elevation: isDragging ? 8   : 1,
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.card,
-                      {
-                        backgroundColor: theme.cardBackground,
-                        shadowColor: theme.text,
-                        shadowOpacity: isDragging ? 0.3 : 0.03,
-                        opacity: isDragging ? 0.95 : 1,
-                      },
-                      isCompleted && { backgroundColor: theme.cardCompleted },
-                    ]}
-                  >
-                    <TouchableOpacity
-                      style={styles.cardMainArea}
-                      onPress={() => item.type !== 'note' && toggleStatus(item.id, currentLogDateStr)}
-                      onLongPress={() => handleOpenDatePickerForItem(item)}
-                      delayLongPress={350}
-                      activeOpacity={0.7}
-                      disabled={draggingIndex !== null}
-                    >
-                      {/* Ícono del tipo/estado de la entrada */}
-                      <View style={styles.iconContainer}>
-                        <Ionicons
-                          name={iconName}
-                          size={item.type === 'note' ? 24 : 16}
-                          color={iconColor}
-                          style={item.type === 'task' && !isCompleted ? styles.taskIcon : null}
-                        />
-                      </View>
-
-                      {/* Texto de la entrada */}
-                      <View style={styles.cardContent}>
-                        <Text
-                          variant="body"
-                          style={[
-                            styles.cardText,
-                            { color: theme.text },
-                            isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.text}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    {/* Botones de acción: Papelera y Tirador de arrastre */}
-                    <View style={styles.actionButtons}>
-                      <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={() => confirmDeleteEntry(item.id)}
-                        accessibilityLabel={language === 'es' ? 'Eliminar' : 'Delete'}
-                        accessibilityRole="button"
-                        disabled={draggingIndex !== null}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={theme.error || '#ff3b30'} />
-                      </TouchableOpacity>
-
-                      <View
-                        style={styles.dragHandle}
-                        {...panResponders[index]?.panHandlers}
-                        accessibilityLabel={
-                          language === 'es'
-                            ? 'Arrastrar para ordenar'
-                            : 'Drag to reorder'
-                        }
-                      >
-                        <Ionicons
-                          name="menu"
-                          size={24}
-                          color={isDragging ? theme.primary : theme.textSecondary}
-                        />
-                      </View>
-                    </View>
-                  </View>
+                  <EntryCard
+                    item={item}
+                    theme={theme}
+                    language={language}
+                    todayStr={todayStr}
+                    currentLogDateStr={currentLogDateStr}
+                    onToggleStatus={toggleStatus}
+                    onToggleSignifier={toggleSignifier}
+                    onLongPress={handleOpenDatePickerForItem}
+                    onDelete={confirmDeleteEntry}
+                    dragHandleHandlers={panResponders[index]?.panHandlers}
+                    isDragging={isDragging}
+                    isDisabled={isDraggingAny}
+                  />
                 </Animated.View>
               );
             })
@@ -440,49 +420,128 @@ export default function DailyLogScreen() {
         </ScrollView>
       </View>
 
-      {/* Input reutilizable con selector de tipo */}
+      {/* ── Input con selector de tipo y fecha ──────────────────────────── */}
       <SmartInput
         value={inputText}
         onChangeText={setInputText}
         onSubmit={handleAddEntry}
         placeholder={language === 'es' ? 'Añadir...' : 'Add entry...'}
         topContent={
-          <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, alignItems: 'center' }}
+          >
+            {/* Selector de tipo: Tarea */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'task' ? theme.text : theme.inputBackground }]}
               onPress={() => setSelectedType('task')}
               accessibilityLabel={language === 'es' ? 'Tarea' : 'Task'}
             >
               <Ionicons name="ellipse" size={10} color={selectedType === 'task' ? theme.cardBackground : theme.iconInactive} />
+              <Text style={{ marginLeft: 4, fontSize: 11, fontWeight: selectedType === 'task' ? '600' : '400', color: selectedType === 'task' ? theme.cardBackground : theme.textSecondary }}>
+                {language === 'es' ? 'Tarea' : 'Task'}
+              </Text>
             </TouchableOpacity>
+
+            {/* Selector de tipo: Evento */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'event' ? theme.text : theme.inputBackground }]}
-              onPress={() => setSelectedType('event')}
+              onPress={() => {
+                setSelectedType('event');
+                setSelectedSignifier(null);
+              }}
               accessibilityLabel={language === 'es' ? 'Evento' : 'Event'}
             >
               <Ionicons name="ellipse-outline" size={12} color={selectedType === 'event' ? theme.cardBackground : theme.iconInactive} />
+              <Text style={{ marginLeft: 4, fontSize: 11, fontWeight: selectedType === 'event' ? '600' : '400', color: selectedType === 'event' ? theme.cardBackground : theme.textSecondary }}>
+                {language === 'es' ? 'Evento' : 'Event'}
+              </Text>
             </TouchableOpacity>
+
+            {/* Selector de tipo: Nota */}
             <TouchableOpacity
               style={[styles.typeButton, { backgroundColor: selectedType === 'note' ? theme.text : theme.inputBackground }]}
-              onPress={() => setSelectedType('note')}
+              onPress={() => {
+                setSelectedType('note');
+                setSelectedSignifier(null);
+              }}
               accessibilityLabel={language === 'es' ? 'Nota' : 'Note'}
             >
               <Ionicons name="remove" size={16} color={selectedType === 'note' ? theme.cardBackground : theme.iconInactive} />
+              <Text style={{ marginLeft: 2, fontSize: 11, fontWeight: selectedType === 'note' ? '600' : '400', color: selectedType === 'note' ? theme.cardBackground : theme.textSecondary }}>
+                {language === 'es' ? 'Nota' : 'Note'}
+              </Text>
             </TouchableOpacity>
-          </>
+
+            {selectedType === 'task' && (
+              <>
+                {/* Divisor suave */}
+                <View style={{ width: 1, height: 16, backgroundColor: theme.border, marginHorizontal: 0 }} />
+
+                {/* Significador purista: Prioridad (*) */}
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    { backgroundColor: selectedSignifier === 'priority' ? theme.text : theme.inputBackground },
+                  ]}
+                  onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
+                  accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 'bold',
+                      lineHeight: 16,
+                      color: selectedSignifier === 'priority' ? theme.cardBackground : theme.iconInactive,
+                    }}
+                  >
+                    *
+                  </Text>
+                  <Text style={{ marginLeft: 2, fontSize: 11, fontWeight: selectedSignifier === 'priority' ? '600' : '400', color: selectedSignifier === 'priority' ? theme.cardBackground : theme.textSecondary }}>
+                    {language === 'es' ? 'Prioridad' : 'Priority'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Significador purista: Inspiración (!) */}
+                <TouchableOpacity
+                  style={[
+                    styles.typeButton,
+                    { backgroundColor: selectedSignifier === 'inspiration' ? theme.text : theme.inputBackground },
+                  ]}
+                  onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
+                  accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Idea (!)'}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.iconInactive,
+                    }}
+                  >
+                    !
+                  </Text>
+                  <Text style={{ marginLeft: 2, fontSize: 11, fontWeight: selectedSignifier === 'inspiration' ? '600' : '400', color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.textSecondary }}>
+                    {language === 'es' ? 'Idea' : 'Idea'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
         }
         leftContent={
+          /* Botón de calendario para seleccionar fecha u hora de la nueva entrada */
           <TouchableOpacity
             style={styles.calendarButton}
             onPress={() => setShowDatePicker(true)}
-            accessibilityLabel={language === 'es' ? 'Seleccionar fecha' : 'Select date'}
+            accessibilityLabel={language === 'es' ? 'Seleccionar fecha u hora' : 'Select date or time'}
           >
             <Ionicons
               name="calendar"
               size={22}
               color={
-                getFormattedDate(selectedDate, timezone) !== currentLogDateStr
-                  ? theme.primary
+                getFormattedDate(selectedDate, timezone) !== currentLogDateStr || selectedTime
+                  ? theme.primary       // Destacado si la fecha/hora difiere
                   : theme.textSecondary
               }
             />
@@ -490,94 +549,249 @@ export default function DailyLogScreen() {
         }
       />
 
-      {/* Modal selector de fecha para crear nueva entrada */}
+      {/* ── Modal: selector de fecha y hora para nueva entrada ─────────────── */}
       <CustomDatePickerModal
         visible={showDatePicker}
         selectedDate={selectedDate}
-        onSelectDate={(date) => setSelectedDate(date)}
+        selectedTime={selectedTime}
+        onSelectDate={(date, time) => {
+          setSelectedDate(date);
+          setSelectedTime(time || null);
+        }}
         onClose={() => setShowDatePicker(false)}
       />
 
-      {/* Modal selector de fecha para MOVER una entrada existente al hacer pulsación prolongada */}
+      {/* ── Modal: selector de fecha y hora para MOVER entrada existente ──── */}
       <CustomDatePickerModal
         visible={!!reschedulingItem}
         selectedDate={reschedulingItem?.date || currentLogDateStr}
+        selectedTime={reschedulingItem?.time || null}
         onSelectDate={handleMoveEntryDate}
         onClose={() => setReschedulingItem(null)}
+      />
+
+      {/* ── Desplegable flotante: Selector de vista (Log Diario / Semanal / Mensual) ── */}
+      <Modal
+        transparent={true}
+        visible={showLogModeMenu}
+        onRequestClose={() => setShowLogModeMenu(false)}
+        animationType="fade"
+      >
+        <View style={styles.inlineOverlayContainer}>
+          <TouchableOpacity
+            style={styles.inlineBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowLogModeMenu(false)}
+          />
+          <View
+            style={[
+              styles.dropdownMenu,
+              {
+                backgroundColor: theme.cardBackground,
+                borderColor: theme.border,
+                shadowColor: theme.text,
+                top: insets.top + 60,
+              },
+            ]}
+          >
+            {[
+              { id: 'daily', labelEs: 'Log Diario',  labelEn: 'Daily Log', icon: 'today-outline' },
+              { id: 'week',  labelEs: 'Log Semanal', labelEn: 'Week Log',  icon: 'calendar-outline' },
+              { id: 'month', labelEs: 'Log Mensual', labelEn: 'Month Log', icon: 'calendar-number-outline' },
+            ].map((option) => {
+              const isSelected = logMode === option.id;
+              const label = language === 'es' ? option.labelEs : option.labelEn;
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.dropdownItem,
+                    isSelected && { backgroundColor: theme.primaryBackground || theme.inputBackground },
+                  ]}
+                  onPress={() => {
+                    setLogMode(option.id);
+                    setShowLogModeMenu(false);
+                  }}
+                >
+                  <Ionicons
+                    name={option.icon}
+                    size={20}
+                    color={isSelected ? theme.primary : theme.text}
+                    style={{ marginRight: 12 }}
+                  />
+                  <Text
+                    variant="body"
+                    style={[
+                      styles.dropdownItemText,
+                      { color: isSelected ? theme.primary : theme.text, fontWeight: isSelected ? '700' : '400' },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                  {isSelected && (
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color={theme.primary}
+                      style={{ marginLeft: 'auto' }}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal de Búsqueda Global ────────────────────────────────────────── */}
+      <SearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectResult={handleSelectSearchResult}
       />
     </View>
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10 },
+  safeArea: { flex: 1, position: 'relative' },
+
+  /** Cabecera con navegación de días */
+  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, zIndex: 10 },
   headerNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitles: { alignItems: 'center' },
+  rightHeaderButtons: { flexDirection: 'row', alignItems: 'center' },
+  titleSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
   navButton: { padding: 8 },
   title: { letterSpacing: -0.5 },
   subtitle: { marginTop: 4, textTransform: 'capitalize' },
+
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-    flexGrow: 1,
+    paddingTop:        10,
+    paddingBottom:     20,
+    flexGrow:          1,
   },
+
+  /** Slot de altura fija: unidad fundamental de la rejilla del drag */
   slotContainer: {
-    height: CARD_HEIGHT,
+    height:       CARD_HEIGHT,
     marginBottom: CARD_GAP,
   },
+
   card: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex:              1,
+    flexDirection:     'row',
+    alignItems:        'center',
     paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    borderRadius:      12,
+    shadowOffset:      { width: 0, height: 2 },
+    shadowRadius:      4,
   },
   cardMainArea: {
-    flex: 1,
+    flex:          1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems:    'center',
     paddingVertical: 12,
   },
   iconContainer: {
-    width: 24,
-    alignItems: 'center',
+    flexDirection:  'row',
+    alignItems:     'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight:    12,
+  },
+  signifierText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 3,
   },
   taskIcon: { transform: [{ scale: 0.8 }] },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
+  timeBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: 8,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  timeBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  cardContent: {
+    flex:           1,
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'flex-start',
   },
   cardText: { flex: 1 },
+
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   iconButton: { padding: 8, marginLeft: 2 },
   dragHandle: {
-    padding: 8,
-    marginLeft: 4,
-    marginRight: -4,
-    alignItems: 'center',
+    padding:        8,
+    marginLeft:     4,
+    marginRight:    -4,
+    alignItems:     'center',
     justifyContent: 'center',
   },
+
   emptyContainer: {
-    alignItems: 'center',
+    alignItems:  'center',
     justifyContent: 'center',
-    marginTop: 60,
+    marginTop:   60,
   },
   emptyText: {},
+
+  /** Selector de tipo de entrada (tarea/evento/nota) */
   typeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    flexDirection:    'row',
+    alignItems:       'center',
+    paddingHorizontal: 8,
+    paddingVertical:   6,
+    borderRadius:      14,
   },
   calendarButton: { padding: 4 },
-});
 
+  inlineOverlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  inlineBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: 220,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 9999,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginHorizontal: 4,
+    marginVertical: 2,
+  },
+  dropdownItemText: {
+    fontSize: 15,
+  },
+});

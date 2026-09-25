@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useJournal, getFormattedDate } from '../context/JournalContext';
 import { useSettings } from '../context/SettingsContext';
 import CustomDatePickerModal from '../components/CustomDatePickerModal';
-import { filterEntriesForDay, getEntryIcon, isEntryCompleted } from '../services/DailyLogService';
+import { filterEntriesForDay, getEntryIcon, isEntryCompleted, getSignifierSymbol } from '../services/DailyLogService';
+import SearchModal from '../components/SearchModal';
 
 // Configurar el idioma del calendario
 LocaleConfig.locales['es'] = {
@@ -25,63 +26,109 @@ LocaleConfig.locales['en'] = {
   today: 'Today'
 };
 
-export default function CalendarScreen() {
-  const { entries, toggleStatus, updateEntryDate } = useJournal();
-  const { theme, language, timezone } = useSettings();
+export default function CalendarScreen({ navigation }) {
+  const { entries, toggleStatus, toggleSignifier, updateEntryDate } = useJournal();
+  const { theme, language, timezone, firstDayOfWeek = 'monday' } = useSettings();
   const insets = useSafeAreaInsets();
   const today = getFormattedDate(new Date(), timezone);
   const [selectedDate, setSelectedDate] = useState(today);
   const [reschedulingItem, setReschedulingItem] = useState(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   useEffect(() => {
     LocaleConfig.defaultLocale = language;
   }, [language]);
 
+  const handleSelectSearchResult = (item) => {
+    if (item.listId && navigation) {
+      navigation.navigate('Listas', {
+        screen: 'ListDetail',
+        params: { list: { id: item.listId, title: item.listName || '' } },
+      });
+    } else if (item.date || item.completedAt) {
+      const targetDate = item.date || item.completedAt;
+      setSelectedDate(targetDate);
+    }
+  };
+
   const markedDates = useMemo(() => {
     const marks = {};
     
-    // 1. Poner el texto en azul para los días que tienen tareas/eventos
+    // 1. Identificar todos los días que tienen alguna entrada (tarea, evento o nota)
     entries.forEach(entry => {
       if (entry.listId) return;
 
+      let entryDate = null;
       if (entry.status === 'completed' && entry.completedAt) {
-        marks[entry.completedAt] = { textColor: theme.primary };
+        entryDate = entry.completedAt;
       } else if (entry.status === 'open' && entry.type === 'task') {
         if (entry.date && entry.date > today) {
-          marks[entry.date] = { textColor: theme.primary };
+          entryDate = entry.date;
         } else {
-          marks[today] = { textColor: theme.primary };
+          entryDate = today;
         }
       } else if (entry.date) {
-        marks[entry.date] = { textColor: theme.primary };
+        entryDate = entry.date;
+      }
+
+      if (entryDate) {
+        marks[entryDate] = true;
       }
     });
 
-    // 2. Poner un puntito al día actual (HOY) siempre
-    if (marks[today]) {
-        marks[today].marked = true;
-        marks[today].dotColor = theme.text;
-    } else {
-        marks[today] = { marked: true, dotColor: theme.text };
-    }
+    const result = {};
+    const allDates = new Set([...Object.keys(marks), today, selectedDate]);
 
-    // 3. Marcar el día seleccionado actualmente (fondo invertido)
-    if (marks[selectedDate]) {
-        marks[selectedDate].selected = true;
-        marks[selectedDate].selectedColor = theme.text;
-        marks[selectedDate].textColor = theme.cardBackground; 
-        if (marks[selectedDate].marked) {
-            marks[selectedDate].dotColor = theme.cardBackground;
-        }
-    } else {
-        marks[selectedDate] = {
-            selected: true,
-            selectedColor: theme.text,
-            textColor: theme.cardBackground
+    allDates.forEach(dateStr => {
+      const isToday = dateStr === today;
+      const isSelected = dateStr === selectedDate;
+      const hasEntries = !!marks[dateStr];
+
+      const itemConfig = {};
+
+      // Punto debajo del número si hay alguna tarea, evento o nota
+      if (hasEntries) {
+        itemConfig.marked = true;
+        itemConfig.dotColor = isSelected
+          ? theme.cardBackground
+          : (theme.primary || '#007AFF');
+      }
+
+      // Estilos customizados
+      if (isSelected) {
+        // Día visualizado: contenedor con color primario/texto y texto en contraste
+        itemConfig.customStyles = {
+          container: {
+            backgroundColor: theme.text,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          text: {
+            color: theme.cardBackground,
+            fontWeight: '700',
+          },
         };
-    }
+      } else if (isToday) {
+        // Día actual (HOY): contenedor sutil según tema
+        itemConfig.customStyles = {
+          container: {
+            backgroundColor: theme.buttonBackground,
+            borderRadius: 4,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+          text: {
+            color: theme.text,
+            fontWeight: '700',
+          },
+        };
+      }
 
-    return marks;
+      result[dateStr] = itemConfig;
+    });
+
+    return result;
   }, [entries, selectedDate, theme, today]);
 
   // Filtrar las entradas para el día seleccionado usando el servicio central
@@ -89,41 +136,65 @@ export default function CalendarScreen() {
     return filterEntriesForDay(entries, selectedDate, today);
   }, [entries, selectedDate, today]);
 
-  const renderItem = ({ item }) => {
+  const renderItem = useCallback(({ item }) => {
     const isCompleted = isEntryCompleted(item, today);
     const iconName = getEntryIcon(item, today);
 
     return (
-      <TouchableOpacity 
-        style={[styles.itemContainer, { backgroundColor: theme.cardBackground }]}
-        onPress={() => item.type !== 'note' && toggleStatus(item.id, selectedDate)}
-        onLongPress={() => setReschedulingItem(item)}
-        delayLongPress={350}
-        activeOpacity={0.7}
-      >
-        <View style={styles.iconContainer}>
+      <View style={[styles.itemContainer, { backgroundColor: theme.cardBackground }]}>
+        <TouchableOpacity
+          style={styles.iconContainer}
+          onPress={() => toggleSignifier(item.id)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.5}
+        >
+          {item.signifier ? (
+            <Text
+              style={[
+                styles.signifierText,
+                { color: isCompleted ? theme.textCompleted : theme.text },
+              ]}
+            >
+              {getSignifierSymbol(item.signifier)}
+            </Text>
+          ) : null}
           <Ionicons 
             name={iconName} 
             size={item.type === 'note' ? 20 : 14} 
             color={isCompleted ? theme.textCompleted : theme.text} 
           />
-        </View>
-        <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
-          {item.text}
-        </Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 4 }}
+          onPress={() => item.type !== 'note' && toggleStatus(item.id, selectedDate)}
+          onLongPress={() => setReschedulingItem(item)}
+          delayLongPress={350}
+          activeOpacity={0.7}
+        >
+          <Text variant="body" style={[styles.itemText, { color: theme.text }, isCompleted && { color: theme.textCompleted, textDecorationLine: 'line-through' }]}>
+            {item.text}
+          </Text>
+        </TouchableOpacity>
+      </View>
     );
-  };
+  }, [today, theme, toggleSignifier, toggleStatus, selectedDate]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
+        <View style={{ width: 28 }} />
         <Text variant="h1" style={[styles.title, { color: theme.text }]}>
           {language === 'es' ? 'Registro Futuro' : 'Future Log'}
         </Text>
+        <TouchableOpacity onPress={() => setShowSearchModal(true)} style={styles.searchIconButton}>
+          <Ionicons name="search" size={22} color={theme.text} />
+        </TouchableOpacity>
       </View>
       <Calendar
+        markingType="custom"
         current={selectedDate}
+        firstDay={firstDayOfWeek === 'sunday' ? 0 : 1}
         onDayPress={day => {
           setSelectedDate(day.dateString);
         }}
@@ -164,6 +235,10 @@ export default function CalendarScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         ListEmptyComponent={
           <View style={styles.emptyDate}>
             <Text variant="body" style={[styles.emptyDateText, { color: theme.textSecondary }]}>
@@ -185,6 +260,13 @@ export default function CalendarScreen() {
         }}
         onClose={() => setReschedulingItem(null)}
       />
+
+      {/* Modal de Búsqueda Global */}
+      <SearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectResult={handleSelectSearchResult}
+      />
     </View>
   );
 }
@@ -193,8 +275,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 10, alignItems: 'center' },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   title: { letterSpacing: -0.5, textAlign: 'center' },
+  searchIconButton: { padding: 4 },
   calendar: {
     marginBottom: 10,
     borderBottomWidth: 1,
@@ -224,10 +314,15 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   iconContainer: {
-    width: 24,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  signifierText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 3,
   },
   itemText: {
     flex: 1,

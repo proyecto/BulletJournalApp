@@ -41,6 +41,10 @@ const db = SQLite.openDatabaseSync('bulletjournal.db');
 export const initDB = () => {
   db.execSync(`
     PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA temp_store = MEMORY;
+    PRAGMA cache_size = -2000;
+    PRAGMA foreign_keys = ON;
 
     -- Tabla de listas personalizadas del usuario (ej: "Películas", "Libros")
     CREATE TABLE IF NOT EXISTS lists (
@@ -53,6 +57,7 @@ export const initDB = () => {
     -- 'date': Fecha en formato YYYY-MM-DD (requerida, NOT NULL)
     -- 'completedAt': Fecha en que se completó la tarea (NULL si no está completada)
     -- 'listId': Clave foránea a 'lists'. NULL si es una entrada del Daily Log.
+    -- 'signifier': Significador purista BuJo ('priority' [*] | 'inspiration' [!] | NULL)
     CREATE TABLE IF NOT EXISTS entries (
       id TEXT PRIMARY KEY,
       text TEXT NOT NULL,
@@ -61,7 +66,10 @@ export const initDB = () => {
       date TEXT NOT NULL,
       completedAt TEXT,
       listId TEXT,
-      order_index INTEGER DEFAULT 0
+      order_index INTEGER DEFAULT 0,
+      signifier TEXT,
+      time TEXT,
+      FOREIGN KEY (listId) REFERENCES lists(id) ON DELETE CASCADE
     );
 
     -- Tabla de configuración clave-valor para persistir las preferencias del usuario
@@ -69,6 +77,28 @@ export const initDB = () => {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    -- Índices de alto rendimiento para búsquedas y ordenaciones frecuentes
+    CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
+    CREATE INDEX IF NOT EXISTS idx_entries_listId ON entries(listId);
+    CREATE INDEX IF NOT EXISTS idx_entries_status ON entries(status);
+    CREATE INDEX IF NOT EXISTS idx_entries_order ON entries(order_index);
+    CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(type);
+    CREATE INDEX IF NOT EXISTS idx_entries_date_order ON entries(date, order_index);
+    CREATE INDEX IF NOT EXISTS idx_entries_archive ON entries(type, listId, date);
+    CREATE INDEX IF NOT EXISTS idx_entries_log_query ON entries(listId, status, date);
+    CREATE INDEX IF NOT EXISTS idx_lists_order ON lists(order_index);
+
+    -- Índices Parciales (Partial Indexes): Árboles B-Tree hiperligeros en RAM dedicados a registros específicos
+    CREATE INDEX IF NOT EXISTS idx_entries_open_tasks ON entries(date, order_index) WHERE status = 'open' AND type = 'task';
+    CREATE INDEX IF NOT EXISTS idx_entries_archive_notes ON entries(date, order_index) WHERE type = 'note' AND listId IS NULL;
+
+    -- Vistas SQLite (Views) para consultas complejas frecuentes con cero sobrecoste
+    CREATE VIEW IF NOT EXISTS v_note_archive AS
+      SELECT * FROM entries WHERE type = 'note' AND listId IS NULL ORDER BY date DESC, order_index ASC;
+
+    CREATE VIEW IF NOT EXISTS v_open_daily_tasks AS
+      SELECT * FROM entries WHERE type = 'task' AND status = 'open' AND listId IS NULL ORDER BY date ASC, order_index ASC;
   `);
 
   // Migración segura para bases de datos existentes que no tenían la columna order_index en entries
@@ -76,7 +106,51 @@ export const initDB = () => {
     db.execSync('ALTER TABLE entries ADD COLUMN order_index INTEGER DEFAULT 0;');
   } catch (e) {
     // La columna ya existe, se ignora de forma segura
+    console.log('Nota de migración (ignorada):', e.message);
   }
+
+  // Migración segura para bases de datos existentes que no tenían la columna signifier en entries
+  try {
+    db.execSync('ALTER TABLE entries ADD COLUMN signifier TEXT DEFAULT NULL;');
+  } catch (e) {
+    // La columna ya existe, se ignora de forma segura
+  }
+
+  // Migración segura para bases de datos existentes que no tenían la columna time en entries
+  try {
+    db.execSync('ALTER TABLE entries ADD COLUMN time TEXT DEFAULT NULL;');
+  } catch (e) {
+    // La columna ya existe, se ignora de forma segura
+  }
+};
+
+/**
+ * Ejecuta operaciones compuestas dentro de una transacción SQLite atómica.
+ * Agrupa múltiples operaciones I/O en una única transacción de disco para máxima velocidad.
+ *
+ * @param {Function} callback - Función asíncrona que contiene las operaciones a ejecutar.
+ * @returns {Promise<*>} El resultado de la ejecución del callback.
+ */
+export const runInTransaction = async (callback) => {
+  if (typeof db.withTransactionAsync === 'function') {
+    return await db.withTransactionAsync(callback);
+  }
+  try {
+    if (typeof db.execAsync === 'function') {
+      await db.execAsync('BEGIN TRANSACTION;');
+      const result = await callback();
+      await db.execAsync('COMMIT;');
+      return result;
+    }
+  } catch (err) {
+    if (typeof db.execAsync === 'function') {
+      try {
+        await db.execAsync('ROLLBACK;');
+      } catch (_) {}
+    }
+    throw err;
+  }
+  return await callback();
 };
 
 /**

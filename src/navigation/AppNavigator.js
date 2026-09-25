@@ -71,7 +71,7 @@ function BottomTabs() {
       <Tab.Screen 
         name="Hoy" 
         component={DailyLogScreen} 
-        options={{ title: language === 'es' ? 'Daily Log' : 'Daily Log' }}
+        options={{ title: language === 'es' ? 'Log Diario' : 'Daily Log' }}
       />
       <Tab.Screen 
         name="Calendario" 
