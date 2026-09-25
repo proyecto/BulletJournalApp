@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Lora_400Regular, Lora_700Bold } from '@expo-google-fonts/lora';
@@ -11,13 +10,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { JournalProvider } from './src/context/JournalContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
-import { StatusBar, Platform } from 'react-native';
+import { StatusBar } from 'react-native';
 import PinLockModal from './src/components/PinLockModal';
 import { initDB } from './src/database/db';
 
 initDB();
-
-SplashScreen.preventAutoHideAsync();
 
 function MainAppContent() {
   const { isUnlocked, pinLockEnabled, isDark, theme } = useSettings();
@@ -71,16 +68,6 @@ export default function App() {
     EBGaramond_600SemiBold,
     EBGaramond_700Bold,
   });
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) {
-    return null;
-  }
 
   return (
     <SafeAreaProvider>
