@@ -6,7 +6,7 @@
  * nativo con fondo atenuado y el input flotando exactamente sobre el teclado virtual.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -15,6 +15,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
@@ -32,17 +33,23 @@ export default function SmartInput({
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef(null);
 
+  const focusTimerRef = useRef(null);
+
   const handleOpen = () => {
     setIsOpen(true);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    if (focusTimerRef.current) {
+      clearTimeout(focusTimerRef.current);
+    }
+    Keyboard.dismiss();
     setIsOpen(false);
-  };
+  }, []);
 
   const handleModalShow = () => {
     // Delay de 60ms para garantizar que el foco nativo se aplique tras el render del Dialog
-    setTimeout(() => {
+    focusTimerRef.current = setTimeout(() => {
       inputRef.current?.focus();
     }, 60);
   };
@@ -52,6 +59,34 @@ export default function SmartInput({
     onSubmit();
     handleClose();
   };
+
+  // Cierra automáticamente el modal cuando se oculta el teclado (p.ej. al pulsar el botón atrás de Android)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let keyboardHasShown = false;
+
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      keyboardHasShown = true;
+    });
+
+    // Margen de seguridad en caso de que el teclado tarde en responder o no emita evento de apertura
+    const safetyTimer = setTimeout(() => {
+      keyboardHasShown = true;
+    }, 400);
+
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      if (keyboardHasShown) {
+        handleClose();
+      }
+    });
+
+    return () => {
+      clearTimeout(safetyTimer);
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [isOpen, handleClose]);
 
   const defaultPlaceholder = language === 'es' ? 'Escribe aquí...' : 'Type here...';
 
@@ -114,6 +149,7 @@ export default function SmartInput({
 
       {/* ─── 2. MODAL NATIVO FLOTANTE SOBRE EL TECLADO ─── */}
       <Modal
+        testID="smart-input-modal"
         visible={isOpen}
         transparent={true}
         animationType="fade"
@@ -225,9 +261,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   topContentContainer: {
-    flexDirection: 'row',
     marginBottom: 10,
-    gap: 8,
   },
   inputRow: {
     flexDirection: 'row',

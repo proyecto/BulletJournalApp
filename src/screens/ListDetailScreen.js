@@ -1,55 +1,196 @@
 /**
  * @screen ListDetailScreen
- * @description Pantalla de detalle de una lista personalizada del usuario.
+ * @pattern Facade Consumer + Observer Consumer + Strategy Consumer
  *
- * Muestra todos los elementos de la lista seleccionada, permite añadir nuevos,
- * alternar su estado y reordenarlos mediante el sistema determinista de slots animados.
+ * ─── RESPONSABILIDAD ─────────────────────────────────────────────────────────
+ * Pantalla de detalle de una lista personalizada del usuario.
+ *
+ * Arquitectura en capas:
+ *   ┌──────────────────────────────┐
+ *   │     ListDetailScreen.js      │  ← UI (esta pantalla)
+ *   ├──────────────────────────────┤
+ *   │  useDragAndDrop (Hook)       │  ← Lógica de interacción gestual
+ *   ├──────────────────────────────┤
+ *   │  JournalContext (Facade)     │  ← API de negocio simplificada
+ *   ├──────────────────────────────┤
+ *   │  EntryRepository             │  ← Acceso a datos (SQLite)
+ *   └──────────────────────────────┘
+ *
+ * ─── FUNCIONALIDADES ─────────────────────────────────────────────────────────
+ * - Muestra todos los elementos de la lista seleccionada.
+ * - Permite añadir nuevos elementos mediante SmartInput.
+ * - Permite alternar el estado de cada elemento (open/completed).
+ * - Permite eliminar elementos con confirmación.
+ * - Permite reordenar elementos mediante drag & drop animado.
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
   TouchableOpacity,
   ScrollView,
   Animated,
-  PanResponder,
   Alert,
+  SectionList,
 } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSignifierSymbol } from '../services/DailyLogService';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettings } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
 import SmartInput from '../components/SmartInput';
 import { createListEntry } from '../factories/EntryFactory';
+import { useDragAndDrop } from '../hooks/useDragAndDrop';
+import { SYSTEM_NOTES_ARCHIVE_ID } from '../constants/systemLists';
+import { getNoteArchiveEntries } from '../repositories/EntryRepository';
 
-// Dimensiones fijas de cada "slot" para cálculo matemático perfecto
+// ─── Constantes de Layout ─────────────────────────────────────────────────────
+
+/**
+ * Dimensiones fijas de cada "slot" para el cálculo determinista de posiciones.
+ * SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP  →  unidad de rejilla para el drag.
+ */
 const CARD_HEIGHT = 56;
-const CARD_GAP = 10;
+const CARD_GAP    = 10;
 const SLOT_HEIGHT = CARD_HEIGHT + CARD_GAP;
 
+// ─── Pantalla Principal ───────────────────────────────────────────────────────
+
+/**
+ * Pantalla de detalle de una lista personalizada.
+ *
+ * @param {Object} props
+ * @param {Object} props.route      - Objeto de ruta de React Navigation (contiene `list`).
+ * @param {Object} props.navigation - Objeto de navegación de React Navigation.
+ */
 export default function ListDetailScreen({ route, navigation }) {
-  // La lista que el usuario seleccionó en ListsScreen, pasada via route params
+
+  /**
+   * La lista seleccionada se pasa como parámetro de ruta desde ListsScreen.
+   * Contiene al menos: { id, title }
+   */
   const { list } = route.params;
 
+  /** Indica si esta pantalla muestra la lista de sistema "Archivo de Notas" */
+  const isArchive = list.id === SYSTEM_NOTES_ARCHIVE_ID;
+
   // ── Acceso a datos y configuración (Observer Pattern) ────────────────────────
+
   const { theme, language, timezone } = useSettings();
-  const { entries, toggleStatus, addEntry, deleteEntry, reorderEntries } = useJournal();
+  const { entries, toggleStatus, toggleSignifier, addEntry, deleteEntry, reorderEntries } = useJournal();
   const insets = useSafeAreaInsets();
 
-  /** Texto que el usuario está escribiendo en el SmartInput */
+  // ── Estado local ──────────────────────────────────────────────────────────────
+
+  /** Texto en curso del campo de nuevo elemento */
   const [inputText, setInputText] = useState('');
-  const [draggingIndex, setDraggingIndex] = useState(null);
+
+  /** Significador purista seleccionado para el nuevo elemento ('priority' | 'inspiration' | null) */
+  const [selectedSignifier, setSelectedSignifier] = useState(null);
+
+  /** Entradas del Archivo de Notas (solo en modo archivo) */
+  const [archiveEntries, setArchiveEntries] = useState([]);
+
+  /**
+   * Carga las notas del Archivo cuando el modo es archivo.
+   * Se recarga también cuando `entries` cambia (el usuario borra una nota desde el Daily Log).
+   */
+  useEffect(() => {
+    if (!isArchive) return;
+    getNoteArchiveEntries().then(setArchiveEntries).catch(() => {});
+  }, [isArchive, entries]);
+
+  /**
+   * Agrupa las notas del Archivo por mes/año para facilitar el escaneo visual.
+   * Formato de sección: "Septiembre 2026"
+   */
+  const archiveSections = useMemo(() => {
+    if (!isArchive) return [];
+    const groups = {};
+    archiveEntries.forEach((entry) => {
+      const [year, month] = entry.date.split('-');
+      const key = `${year}-${month}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(entry);
+    });
+    return Object.entries(groups).map(([key, data]) => {
+      const [year, month] = key.split('-');
+      const date = new Date(Number(year), Number(month) - 1, 1);
+      const title = date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', {
+        month: 'long',
+        year:  'numeric',
+      });
+      return { title, data };
+    });
+  }, [archiveEntries, isArchive, language]);
 
   // ── Filtrado de entradas de la lista ──────────────────────────────────────────
-  const listItems = entries.filter((entry) => entry.listId === list.id);
 
-  // Estado local para sincronizar la renderización atómica en el drop y evitar parpadeos
-  const [orderedItems, setOrderedItems] = useState(listItems);
+  /**
+   * Filtramos y ordenamos las entradas que pertenecen a esta lista.
+   * `useMemo` garantiza que el filtro solo se recalcula cuando `entries`
+   * o `list.id` cambian, no en cada render.
+   *
+   * El orden viene dado por `order_index`, asignado al crear cada elemento
+   * y actualizado por `reorderEntries` tras cada drag & drop.
+   */
+  const listItems = useMemo(
+    () =>
+      entries
+        .filter((entry) => entry.listId === list.id)
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    [entries, list.id]
+  );
 
+  // ── Lógica de Drag & Drop (Template Method + Strategy Pattern) ───────────────
+
+  /**
+   * Delegamos TODA la lógica de arrastre al hook especializado.
+   *
+   * Strategy: `reorderEntries` es la estrategia de persistencia intercambiable.
+   * Template Method: el hook define el algoritmo; `slotHeight` lo especializa.
+   */
+  const {
+    orderedItems,
+    setOrderedItems,
+    draggingIndex,
+    itemAnimMap,
+    panResponders,
+    isDraggingRef,
+  } = useDragAndDrop({
+    items: listItems,
+    onReorder: reorderEntries,
+    slotHeight: SLOT_HEIGHT,
+  });
+
+  // ── Sincronización con el estado global (Observer) ───────────────────────────
+
+  /**
+   * Cuando el contexto global (`entries`) cambia (nuevo elemento, toggle, eliminación),
+   * sincronizamos el estado local con la nueva fuente de verdad.
+   *
+   * GUARD: `isDraggingRef.current` evita que una actualización interrumpa un drag activo.
+   *
+   * Comparación profunda por `id`, `status` y `text` para detectar cualquier
+   * cambio relevante (no solo reordenaciones).
+   */
   useEffect(() => {
-    if (!isDraggingRef.current) {
+    if (isDraggingRef.current) return;
+
+    const isSame =
+      orderedItems.length === listItems.length &&
+      orderedItems.every(
+        (item, idx) =>
+          item.id        === listItems[idx]?.id        &&
+          item.status    === listItems[idx]?.status    &&
+          item.signifier === listItems[idx]?.signifier &&
+          item.text      === listItems[idx]?.text
+      );
+
+    if (!isSame) {
+      // Resetear animaciones antes de re-sincronizar
       Object.values(itemAnimMap).forEach((anim) => {
         anim.stopAnimation();
         anim.setValue(0);
@@ -58,40 +199,32 @@ export default function ListDetailScreen({ route, navigation }) {
     }
   }, [entries, list.id]);
 
-  // Mapa de valores animados estables vinculados directamente al ID único de cada elemento
-  const itemAnimMap = useRef({}).current;
+  // ── Handlers de Negocio ──────────────────────────────────────────────────────
 
-  // Asegurar que cada elemento tenga siempre su propio Animated.Value estable
-  orderedItems.forEach((item) => {
-    if (!itemAnimMap[item.id]) {
-      itemAnimMap[item.id] = new Animated.Value(0);
-    }
-  });
-
-  // Referencias para controlar el estado de arrastre sin desfases de closure
-  const isDraggingRef = useRef(false);
-  const draggingIndexRef = useRef(null);
-  const targetIndexRef = useRef(null);
-  const currentDyRef = useRef(0);
-  const itemsRef = useRef(orderedItems);
-  itemsRef.current = orderedItems;
-
-  // ── Handlers ──────────────────────────────────────────────────────────────────
-
+  /**
+   * Añade un nuevo elemento a la lista.
+   * Usa `EntryFactory.createListEntry` para garantizar la estructura correcta,
+   * incluyendo el `listId`, `date` (timezone-aware) y `order_index`.
+   */
   const handleAddItem = () => {
     if (!inputText.trim()) return;
 
-    // EntryFactory.createListEntry garantiza la estructura correcta, incluyendo date y order_index
     const newEntry = createListEntry(
       inputText,
       list.id,
       timezone,
-      orderedItems.length
+      orderedItems.length,  // order_index = al final de la lista actual
+      selectedSignifier
     );
     addEntry(newEntry);
     setInputText('');
+    setSelectedSignifier(null);
   };
 
+  /**
+   * Muestra un diálogo de confirmación antes de eliminar un elemento.
+   * @param {string} id - ID del elemento a eliminar.
+   */
   const confirmDeleteItem = (id) => {
     Alert.alert(
       language === 'es' ? 'Eliminar elemento' : 'Delete item',
@@ -109,162 +242,113 @@ export default function ListDetailScreen({ route, navigation }) {
     );
   };
 
-  /**
-   * Recalcula y anima las posiciones de todos los slots no arrastrados
-   * abriendo el hueco en 'targetIdx' inmediatamente mediante cálculo de rango.
-   */
-  const updateSlots = (fromIdx, toIdx) => {
-    const total = itemsRef.current.length;
-    for (let j = 0; j < total; j++) {
-      if (j === fromIdx) continue;
+  // ── Renderizado ───────────────────────────────────────────────────────────────
 
-      const item = itemsRef.current[j];
-      if (!item || !itemAnimMap[item.id]) continue;
+  // ── MODO ARCHIVO ─────────────────────────────────────────────────────────────
+  if (isArchive) {
+    const archiveTitle = language === 'es' ? 'Archivo de Notas' : 'Notes Archive';
+    const emptyMsg     = language === 'es'
+      ? 'Aún no hay notas. Las notas que escribas en el Diario aparecerán aquí.'
+      : 'No notes yet. Notes you write in the Daily Log will appear here.';
 
-      // Rango del elemento entre los restantes (0 .. total-2)
-      const rank = j < fromIdx ? j : j - 1;
-      // Slot asignado cuando el hueco está en toIdx
-      const assignedSlot = rank < toIdx ? rank : rank + 1;
-      // Desplazamiento respecto a su posición de reposo
-      const targetOffset = (assignedSlot - j) * SLOT_HEIGHT;
-
-      // Detener cualquier animación previa para evitar que el spring nativo continúe de fondo
-      itemAnimMap[item.id].stopAnimation();
-      Animated.spring(itemAnimMap[item.id], {
-        toValue: targetOffset,
-        friction: 8,
-        tension: 80,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
-
-  /**
-   * Finaliza el arrastre asentando el elemento en su slot de destino y persistiendo el nuevo orden.
-   */
-  const finishDrag = () => {
-    if (!isDraggingRef.current || draggingIndexRef.current === null) return;
-
-    const fromIdx = draggingIndexRef.current;
-    const toIdx = targetIndexRef.current !== null ? targetIndexRef.current : fromIdx;
-    const draggedItem = itemsRef.current[fromIdx];
-
-    let finalized = false;
-    const finalize = () => {
-      if (finalized) return;
-      finalized = true;
-
-      // 1. Detener todas las animaciones nativas activas y resetear sus valores a 0
-      Object.values(itemAnimMap).forEach((anim) => {
-        anim.stopAnimation();
-        anim.setValue(0);
-      });
-
-      // 2. Si cambió de posición, calculamos y actualizamos el estado local atómicamente
-      if (fromIdx !== toIdx) {
-        const nextItems = [...itemsRef.current];
-        const [movedItem] = nextItems.splice(fromIdx, 1);
-        nextItems.splice(toIdx, 0, movedItem);
-
-        // Actualizar el estado local y persistir
-        setOrderedItems(nextItems);
-        reorderEntries(nextItems);
-      }
-
-      // 3. Resetear estado de arrastre
-      currentDyRef.current = 0;
-      draggingIndexRef.current = null;
-      targetIndexRef.current = null;
-      isDraggingRef.current = false;
-      setDraggingIndex(null);
+    const confirmDeleteArchiveItem = (id) => {
+      Alert.alert(
+        language === 'es' ? 'Eliminar nota' : 'Delete note',
+        language === 'es'
+          ? '¿Eliminar esta nota del diario de forma permanente?'
+          : 'Permanently delete this note from the journal?',
+        [
+          { text: language === 'es' ? 'Cancelar' : 'Cancel', style: 'cancel' },
+          { text: language === 'es' ? 'Eliminar' : 'Delete', style: 'destructive', onPress: () => deleteEntry(id) },
+        ]
+      );
     };
 
-    const finalSlotDelta = (toIdx - fromIdx) * SLOT_HEIGHT;
-    const currentVal = currentDyRef.current || 0;
+    return (
+      <View style={[styles.safeArea, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+        {/* Cabecera */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={28} color={theme.text} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text variant="h2" style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+              {archiveTitle}
+            </Text>
+            <Text variant="caption" style={[styles.subtitle, { color: theme.textSecondary }]}>
+              {archiveEntries.length} {language === 'es' ? 'notas' : 'notes'}
+            </Text>
+          </View>
+        </View>
 
-    // Si apenas se movió del slot objetivo o no existe la tarjeta, finalizar de inmediato
-    if (!draggedItem || !itemAnimMap[draggedItem.id] || Math.abs(currentVal - finalSlotDelta) < 3) {
-      finalize();
-      return;
-    }
-
-    // Temporizador de seguridad: asegura que el estado se libere siempre aunque el native driver no emita callback
-    const safetyTimer = setTimeout(finalize, 250);
-
-    itemAnimMap[draggedItem.id].stopAnimation();
-    Animated.spring(itemAnimMap[draggedItem.id], {
-      toValue: finalSlotDelta,
-      friction: 8,
-      tension: 90,
-      useNativeDriver: true,
-    }).start(() => {
-      clearTimeout(safetyTimer);
-      finalize();
-    });
-  };
-
-  // PanResponders individuales asociados al botón de arrastre de cada fila
-  const panResponders = useMemo(() => {
-    return orderedItems.map((item, index) =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 2,
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 2,
-        onPanResponderTerminationRequest: () => false, // Impide que ScrollView u otros contenedores aborten el gesto
-        onPanResponderGrant: () => {
-          isDraggingRef.current = true;
-          draggingIndexRef.current = index;
-          targetIndexRef.current = index;
-          currentDyRef.current = 0;
-
-          // Detener animaciones previas en todos los elementos
-          Object.values(itemAnimMap).forEach((anim) => anim.stopAnimation());
-
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(0);
-          }
-          setDraggingIndex(index);
-          updateSlots(index, index);
-        },
-        onPanResponderMove: (_, gestureState) => {
-          const total = itemsRef.current.length;
-          const minDy = -index * SLOT_HEIGHT;
-          const maxDy = (total - 1 - index) * SLOT_HEIGHT;
-
-          // Clampear el desplazamiento estrictamente dentro del rango de los slots disponibles
-          const clampedDy = Math.max(minDy - 6, Math.min(maxDy + 6, gestureState.dy));
-          currentDyRef.current = clampedDy;
-          if (itemAnimMap[item.id]) {
-            itemAnimMap[item.id].setValue(clampedDy);
-          }
-
-          const rawTarget = Math.round(index + clampedDy / SLOT_HEIGHT);
-          const clampedTarget = Math.max(0, Math.min(total - 1, rawTarget));
-
-          if (clampedTarget !== targetIndexRef.current) {
-            targetIndexRef.current = clampedTarget;
-            updateSlots(index, clampedTarget);
-          }
-        },
-        onPanResponderRelease: () => {
-          finishDrag();
-        },
-        onPanResponderTerminate: () => {
-          finishDrag();
-        },
-      })
+        {archiveEntries.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="archive-outline" size={64} color={theme.textCompleted} style={styles.emptyIcon} />
+            <Text variant="body" style={[styles.emptyText, { color: theme.textSecondary }]}>
+              {emptyMsg}
+            </Text>
+          </View>
+        ) : (
+          <SectionList
+            sections={archiveSections}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            renderSectionHeader={({ section: { title } }) => (
+              <Text
+                variant="caption"
+                style={[styles.archiveSectionHeader, { color: theme.textSecondary }]}
+              >
+                {title.charAt(0).toUpperCase() + title.slice(1)}
+              </Text>
+            )}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.archiveCard,
+                  { backgroundColor: theme.cardBackground, shadowColor: theme.text },
+                ]}
+              >
+                <View style={styles.archiveCardContent}>
+                  {/* Bala de nota (–) */}
+                  <Text style={[styles.archiveBullet, { color: theme.textSecondary }]}>–</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" style={{ color: theme.text }} numberOfLines={3}>
+                      {item.text}
+                    </Text>
+                    <Text variant="caption" style={{ color: theme.textSecondary, marginTop: 2 }}>
+                      {item.date}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => confirmDeleteArchiveItem(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={theme.error || '#ff3b30'} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          />
+        )}
+      </View>
     );
-  }, [orderedItems.length, orderedItems]);
+  }
+
+  // ── MODO NORMAL (lista de usuario) ───────────────────────────────────
 
   return (
     <View
       style={[
         styles.safeArea,
-        { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 30) },
+        { backgroundColor: theme.background, paddingTop: insets.top },
       ]}
     >
-      {/* Cabecera con botón de retroceso y título de la lista */}
+      {/* ── Cabecera con botón de retroceso y título de la lista ──────────── */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color={theme.text} />
@@ -273,13 +357,14 @@ export default function ListDetailScreen({ route, navigation }) {
           <Text variant="h2" style={[styles.title, { color: theme.text }]} numberOfLines={1}>
             {list.title}
           </Text>
+          {/* Contador de elementos: usa el estado local para ser consistente durante el drag */}
           <Text variant="caption" style={[styles.subtitle, { color: theme.textSecondary }]}>
             {orderedItems.length} {language === 'es' ? 'elementos' : 'items'}
           </Text>
         </View>
       </View>
 
-      {/* Lista de elementos con ordenación por slots */}
+      {/* ── Lista de elementos con drag & drop animado ───────────────────── */}
       <View style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.listContent}
@@ -287,6 +372,7 @@ export default function ListDetailScreen({ route, navigation }) {
           scrollEnabled={draggingIndex === null}
         >
           {orderedItems.length === 0 ? (
+            // ── Estado vacío ──────────────────────────────────────────────
             <View style={styles.emptyContainer}>
               <Ionicons
                 name="documents-outline"
@@ -304,20 +390,23 @@ export default function ListDetailScreen({ route, navigation }) {
               </Text>
             </View>
           ) : (
+            // ── Tarjetas de elemento (con drag & drop animado) ────────────
             orderedItems.map((item, index) => {
-              const isDragging = draggingIndex === index;
-              const translateY = itemAnimMap[item.id] || 0;
-              const isCompleted = item.status === 'completed';
+              const isDragging    = draggingIndex === index;
+              const isDraggingAny = draggingIndex !== null;
+              const isCompleted   = item.status === 'completed';
 
               return (
                 <Animated.View
                   key={item.id}
                   style={[
                     styles.slotContainer,
+                    isDraggingAny && itemAnimMap[item.id]
+                      ? { transform: [{ translateY: itemAnimMap[item.id] }] }
+                      : null,
                     {
-                      transform: [{ translateY }],
-                      zIndex: isDragging ? 999 : 1,
-                      elevation: isDragging ? 8 : 1,
+                      zIndex:    isDragging ? 999 : 1,
+                      elevation: isDragging ? 8   : 1,
                     },
                   ]}
                 >
@@ -326,39 +415,60 @@ export default function ListDetailScreen({ route, navigation }) {
                       styles.card,
                       {
                         backgroundColor: theme.cardBackground,
-                        shadowColor: theme.text,
-                        shadowOpacity: isDragging ? 0.3 : 0.03,
-                        opacity: isDragging ? 0.95 : 1,
+                        shadowColor:     theme.text,
+                        shadowOpacity:   isDragging ? 0.3  : 0.03,
+                        opacity:         isDragging ? 0.95 : 1,
                       },
                       isCompleted && { backgroundColor: theme.cardCompleted },
                     ]}
                   >
-                    <TouchableOpacity
-                      style={styles.cardMainArea}
-                      onPress={() => toggleStatus(item.id, null)}
-                      activeOpacity={0.7}
-                      disabled={draggingIndex !== null}
-                    >
-                      {/* Bullet: círculo hueco o con X */}
-                      <View style={[styles.bullet, { borderColor: theme.text }]}>
-                        {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
-                      </View>
-
-                      {/* Texto del elemento */}
-                      <Text
-                        variant="body"
-                        style={[
-                          styles.cardText,
-                          { color: isCompleted ? theme.textCompleted : theme.text },
-                          isCompleted && styles.itemTextCompleted,
-                        ]}
-                        numberOfLines={1}
+                    {/* ── Área principal: toggle de significador (* / !) + toggle de estado completado ──── */}
+                    <View style={styles.cardMainArea}>
+                      {/* Bullet visual + significador purista (* / !) */}
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12, paddingVertical: 4 }}
+                        onPress={() => toggleSignifier(item.id)}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        disabled={draggingIndex !== null}
+                        activeOpacity={0.5}
                       >
-                        {item.text}
-                      </Text>
-                    </TouchableOpacity>
+                        {item.signifier ? (
+                          <Text
+                            style={[
+                              styles.signifierText,
+                              { color: isCompleted ? theme.textCompleted : theme.text },
+                            ]}
+                          >
+                            {getSignifierSymbol(item.signifier)}
+                          </Text>
+                        ) : null}
+                        <View style={[styles.bullet, { borderColor: theme.text, marginRight: 0 }]}>
+                          {isCompleted && <Ionicons name="close" size={16} color={theme.text} />}
+                        </View>
+                      </TouchableOpacity>
 
-                    {/* Botones de acción: Papelera y Tirador de arrastre */}
+                      {/* Texto del elemento con tachado si está completado */}
+                      <TouchableOpacity
+                        style={{ flex: 1, paddingVertical: 4 }}
+                        onPress={() => toggleStatus(item.id, null)}
+                        activeOpacity={0.7}
+                        disabled={draggingIndex !== null}
+                      >
+                        <Text
+                          variant="body"
+                          style={[
+                            styles.cardText,
+                            { color: isCompleted ? theme.textCompleted : theme.text },
+                            isCompleted && styles.itemTextCompleted,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.text}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* ── Acciones: eliminar y arrastrar ──────────────────── */}
                     <View style={styles.actionButtons}>
                       <TouchableOpacity
                         style={styles.iconButton}
@@ -374,13 +484,12 @@ export default function ListDetailScreen({ route, navigation }) {
                         />
                       </TouchableOpacity>
 
+                      {/* Handle de arrastre: View (no TouchableOpacity) para evitar conflicto con el tap */}
                       <View
                         style={styles.dragHandle}
                         {...panResponders[index]?.panHandlers}
                         accessibilityLabel={
-                          language === 'es'
-                            ? 'Arrastrar para ordenar'
-                            : 'Drag to reorder'
+                          language === 'es' ? 'Arrastrar para ordenar' : 'Drag to reorder'
                         }
                       >
                         <Ionicons
@@ -398,82 +507,186 @@ export default function ListDetailScreen({ route, navigation }) {
         </ScrollView>
       </View>
 
-      {/* Input reutilizable sin extras */}
+      {/* ── Input de nuevo elemento ──────────────────────────────────────── */}
       <SmartInput
         value={inputText}
         onChangeText={setInputText}
         onSubmit={handleAddItem}
         placeholder={language === 'es' ? 'Añadir elemento...' : 'Add item...'}
+        topContent={
+          <>
+            {/* Significador purista: Prioridad (*) */}
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                { backgroundColor: selectedSignifier === 'priority' ? theme.text : theme.inputBackground },
+              ]}
+              onPress={() => setSelectedSignifier(selectedSignifier === 'priority' ? null : 'priority')}
+              accessibilityLabel={language === 'es' ? 'Prioridad (*)' : 'Priority (*)'}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  color: selectedSignifier === 'priority' ? theme.cardBackground : theme.iconInactive,
+                }}
+              >
+                *
+              </Text>
+            </TouchableOpacity>
+
+            {/* Significador purista: Inspiración (!) */}
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                { backgroundColor: selectedSignifier === 'inspiration' ? theme.text : theme.inputBackground },
+              ]}
+              onPress={() => setSelectedSignifier(selectedSignifier === 'inspiration' ? null : 'inspiration')}
+              accessibilityLabel={language === 'es' ? 'Inspiración (!)' : 'Inspiration (!)'}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  color: selectedSignifier === 'inspiration' ? theme.cardBackground : theme.iconInactive,
+                }}
+              >
+                !
+              </Text>
+            </TouchableOpacity>
+          </>
+        }
       />
     </View>
   );
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+
+  /** Cabecera: botón atrás + título de la lista */
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection:     'row',
+    alignItems:        'center',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 15,
+    paddingTop:        10,
+    paddingBottom:     15,
   },
   backButton: { marginRight: 12, padding: 4 },
   headerTitleContainer: { flex: 1 },
   title: { letterSpacing: -0.5 },
   subtitle: { marginTop: 2 },
+
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-    flexGrow: 1,
+    paddingTop:        10,
+    paddingBottom:     20,
+    flexGrow:          1,
   },
+
+  /** Slot de altura fija: unidad fundamental de la rejilla del drag */
   slotContainer: {
-    height: CARD_HEIGHT,
+    height:       CARD_HEIGHT,
     marginBottom: CARD_GAP,
   },
+
   card: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex:              1,
+    flexDirection:     'row',
+    alignItems:        'center',
     paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    borderRadius:      12,
+    shadowOffset:      { width: 0, height: 2 },
+    shadowRadius:      4,
   },
   cardMainArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex:            1,
+    flexDirection:   'row',
+    alignItems:      'center',
     paddingVertical: 12,
   },
+
+  /**
+   * Bullet visual al estilo Bullet Journal.
+   * Círculo con borde que puede contener un ícono "close" si está completado.
+   */
   bullet: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    marginRight: 12,
-    alignItems: 'center',
+    width:          20,
+    height:         20,
+    borderRadius:   10,
+    borderWidth:    2,
+    marginRight:    12,
+    alignItems:     'center',
     justifyContent: 'center',
   },
+
+  signifierText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 4,
+  },
+
   cardText: { flex: 1 },
   itemTextCompleted: { textDecorationLine: 'line-through' },
+
   actionButtons: { flexDirection: 'row', alignItems: 'center' },
   iconButton: { padding: 8, marginLeft: 2 },
   dragHandle: {
-    padding: 8,
-    marginLeft: 4,
-    marginRight: -4,
+    padding:        8,
+    marginLeft:     4,
+    marginRight:    -4,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  typeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex:              1,
+    justifyContent:    'center',
+    alignItems:        'center',
     paddingHorizontal: 40,
-    marginTop: 60,
+    marginTop:         60,
   },
   emptyIcon: { opacity: 0.5, marginBottom: 16 },
   emptyText: { textAlign: 'center', lineHeight: 24, paddingHorizontal: 20 },
+
+  /** Encabezado de sección del archivo (mes/año) */
+  archiveSectionHeader: {
+    textTransform: 'capitalize',
+    marginTop:     20,
+    marginBottom:  8,
+    paddingHorizontal: 4,
+    fontWeight:    '600',
+    letterSpacing: 0.5,
+  },
+
+  /** Tarjeta de nota en el Archivo */
+  archiveCard: {
+    borderRadius:    12,
+    marginBottom:    10,
+    paddingHorizontal: 16,
+    paddingVertical:   12,
+    shadowOffset:    { width: 0, height: 1 },
+    shadowRadius:    3,
+    shadowOpacity:   0.04,
+  },
+
+  archiveCardContent: {
+    flexDirection: 'row',
+    alignItems:    'flex-start',
+  },
+
+  archiveBullet: {
+    fontSize:    18,
+    marginRight: 12,
+    marginTop:   1,
+  },
 });
