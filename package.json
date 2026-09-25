@@ -1,6 +1,6 @@
 {
   "name": "punteo",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "main": "index.js",
   "dependencies": {
     "@expo-google-fonts/caveat": "^0.4.2",
@@ -62,7 +62,9 @@
     "android": "expo start --android",
     "test": "jest -c tests/jest.config.js",
     "test:watch": "jest -c tests/jest.config.js --watch",
-    "test:coverage": "jest -c tests/jest.config.js --coverage"
+    "test:coverage": "jest -c tests/jest.config.js --coverage",
+    "build:apk": "JAVA_HOME=/opt/homebrew/opt/openjdk@17 eas build --platform android --profile preview --local --output=punteoapp.apk",
+    "release:local": "npm run build:apk && gh release create v$(node -p \"require('./package.json').version\") punteoapp.apk --title \"Punteo v$(node -p \"require('./package.json').version\")\" --generate-notes"
   },
   "private": true,
   "devDependencies": {
