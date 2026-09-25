@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Version tag for release (e.g. v2.0.0)'
-        required: true
-        default: 'v2.0.0'
+        description: 'Version tag for release (e.g. v2.0.1)'
+        required: false
+        default: 'v2.0.1'
 
 jobs:
   build-and-release:
@@ -27,7 +27,7 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: ☕ Setup Java 17 (Required for Gradle/EAS)
+      - name: ☕ Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -36,19 +36,22 @@ jobs:
       - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 🚀 Install EAS CLI
-        run: npm install -g eas-cli
-
       - name: 📦 Install Project Dependencies
         run: npm ci
 
-      - name: 🛠️ Build APK Locally via EAS
-        run: eas build --platform android --profile preview --local --output=punteoapp.apk
+      - name: 🏗️ Expo Prebuild (Generate Android Project)
+        run: npx expo prebuild --platform android --clean
+
+      - name: 🔨 Build Android Release APK with Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
 
       - name: 🏷️ Determine Tag Name
         id: tag_name
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ -n "${{ github.event.inputs.version_tag }}" ]; then
             echo "TAG=${{ github.event.inputs.version_tag }}" >> $GITHUB_ENV
           else
             echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
@@ -62,10 +65,11 @@ jobs:
           body: |
             ## 📓 Punteo Release ${{ env.TAG }}
             
-            Automatic build artifact generated via EAS & GitHub Actions.
+            Standalone Android APK compiled via GitHub Actions & Gradle.
             
-            ### 📱 Download & Install:
-            - Download `punteoapp.apk` below and install it directly on your Android device.
-          files: punteoapp.apk
+            ### 📱 Installation:
+            Download `app-release.apk` below and install it directly on your Android device.
+          files: |
+            android/app/build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
