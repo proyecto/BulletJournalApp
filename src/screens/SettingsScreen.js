@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,11 +7,13 @@ import { useSettings, themeOptions } from '../context/SettingsContext';
 import { useJournal } from '../context/JournalContext';
 import { resetDatabase } from '../database/db';
 import { fontOptions } from '../constants/fonts';
+import { loadAllFonts } from '../services/FontLoader';
 import PinLockModal from '../components/PinLockModal';
 
 import { exportToMarkdown, exportToJSON, importFromJSON } from '../services/ExportImportService';
 
 export default function SettingsScreen({ navigation }) {
+  const [fontsPreloaded, setFontsPreloaded] = useState(false);
   const { 
     theme, 
     themePreference, 
@@ -36,6 +38,12 @@ export default function SettingsScreen({ navigation }) {
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinModalMode, setPinModalMode] = useState('setup');
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (isFontModalVisible && !fontsPreloaded) {
+      loadAllFonts().then(() => setFontsPreloaded(true));
+    }
+  }, [isFontModalVisible, fontsPreloaded]);
 
   const currentFontLabel = fontOptions.find(f => f.id === fontFamily)?.label || fontOptions[0].label;
   const currentThemeOption = themeOptions.find(opt => opt.id === themePreference) || themeOptions[0];
@@ -544,7 +552,7 @@ export default function SettingsScreen({ navigation }) {
 
         <View style={styles.versionContainer}>
           <Text variant="caption" style={[styles.versionText, { color: theme.textSecondary }]}>
-            BulletJournalApp v2.0.0-dev (Build 9)
+            Punteo v2.0.0-dev (Build 9)
           </Text>
         </View>
       </ScrollView>
@@ -572,15 +580,21 @@ export default function SettingsScreen({ navigation }) {
               keyExtractor={item => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity 
-                  style={[styles.modalOption, { borderBottomColor: theme.border }]}
+                  style={[styles.modalOption, { borderBottomColor: theme.border, paddingVertical: 14 }]}
                   onPress={() => {
                     setFontFamily(item.id);
                     setFontModalVisible(false);
                   }}
+                  activeOpacity={0.7}
                 >
-                  <RNText style={[styles.modalOptionText, { color: theme.text }, item.fontStyle]}>
-                    {item.label}
-                  </RNText>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <RNText style={[{ fontSize: 16, color: theme.text, marginBottom: 3 }, item.fontStyle]}>
+                      {item.label}
+                    </RNText>
+                    <RNText style={[{ fontSize: 12, color: theme.textSecondary, opacity: 0.8 }, item.fontStyle]}>
+                      {language === 'es' ? 'El veloz murciélago hindú — 123' : 'The quick brown fox jumps — 123'}
+                    </RNText>
+                  </View>
                   {fontFamily === item.id && (
                     <Ionicons name="checkmark" size={20} color={theme.primary} />
                   )}

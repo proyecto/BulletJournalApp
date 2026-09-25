@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Modal, FlatList, Text as RNText } from 'react-native';
 import { AppText as Text } from '../components/Typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import Slider from '@react-native-community/slider';
 import { useSettings } from '../context/SettingsContext';
 import { fontOptions } from '../constants/fonts';
 import { TYPOGRAPHY_PRESETS } from '../constants/themes';
+import { loadAllFonts } from '../services/FontLoader';
 
 const VARIANTS = [
   { id: 'h1', labelEs: 'Título Gigante (H1)', labelEn: 'Giant Title (H1)' },
@@ -27,8 +28,15 @@ export default function AdvancedTypographyScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   
   const [activeVariant, setActiveVariant] = useState(null);
-  const [modalType, setModalType] = useState(null); // 'family', 'size', 'weight', 'color'
+  const [modalType, setModalType] = useState(null);
   const [tempColor, setTempColor] = useState({ r: 0, g: 0, b: 0 });
+  const [fontsPreloaded, setFontsPreloaded] = useState(false);
+
+  useEffect(() => {
+    if (modalType === 'family' && !fontsPreloaded) {
+      loadAllFonts().then(() => setFontsPreloaded(true)).catch(err => console.warn(err));
+    }
+  }, [modalType, fontsPreloaded]);
 
   const openColorModal = (variant) => {
     setActiveVariant(variant);
@@ -225,15 +233,23 @@ export default function AdvancedTypographyScreen({ navigation }) {
                 keyExtractor={item => item.id || 'inherit'}
                 renderItem={({ item }) => (
                   <TouchableOpacity 
-                    style={[styles.modalOption, { borderBottomColor: theme.border }]}
+                    style={[styles.modalOption, { borderBottomColor: theme.border, paddingVertical: 14 }]}
                     onPress={() => {
                       handleUpdate(activeVariant, 'fontFamily', item.id);
                       setModalType(null);
                     }}
+                    activeOpacity={0.7}
                   >
-                    <RNText style={[styles.modalOptionText, { color: theme.text }, item.fontStyle]}>
-                      {item.label}
-                    </RNText>
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <RNText style={[{ fontSize: 16, color: theme.text, marginBottom: 3 }, item.fontStyle]}>
+                        {item.label}
+                      </RNText>
+                      {item.id && (
+                        <RNText style={[{ fontSize: 12, color: theme.textSecondary, opacity: 0.8 }, item.fontStyle]}>
+                          {language === 'es' ? 'El veloz murciélago hindú — 123' : 'The quick brown fox jumps — 123'}
+                        </RNText>
+                      )}
+                    </View>
                     {typographyConfig[activeVariant]?.fontFamily === item.id && (
                       <Ionicons name="checkmark" size={20} color={theme.primary} />
                     )}

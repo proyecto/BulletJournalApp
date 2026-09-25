@@ -227,3 +227,18 @@ export async function loadFontFamily(fontId) {
     }
   }
 }
+
+/**
+ * Precarga todas las fuentes registradas para que el usuario las previsualice con su tipografía real en los Ajustes.
+ * @returns {Promise<void>}
+ */
+export async function loadAllFonts() {
+  const fontIds = Object.keys(fontRegistry);
+  await Promise.allSettled(fontIds.map(id => loadFontFamily(id)));
+}
+
+export function isFontLoaded(fontId) {
+  if (!fontId || fontId === 'system') return true;
+  return loadedFonts.has(fontId);
+}
+

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BulletJournalApp",
+    "name": "Punteo",
     "slug": "BulletJournalApp",
     "version": "2.0.0",
     "orientation": "portrait",
@@ -11,10 +11,15 @@
       "backgroundColor": "#FFFFFF"
     },
     "platforms": [
-      "android"
+      "android",
+      "ios"
     ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rafael.punteo"
+    },
     "android": {
-      "package": "com.rafael.bulletjournalapp",
+      "package": "com.rafael.punteo",
       "versionCode": 9,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
