@@ -33,6 +33,7 @@ import {
   StyleSheet,
   View,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ScrollView,
   Animated,
   Alert,
@@ -578,70 +579,69 @@ export default function DailyLogScreen({ navigation }) {
         onRequestClose={() => setShowLogModeMenu(false)}
         animationType="fade"
       >
-        <View style={styles.inlineOverlayContainer}>
-          <TouchableOpacity
-            style={styles.inlineBackdrop}
-            activeOpacity={1}
-            onPress={() => setShowLogModeMenu(false)}
-          />
-          <View
-            style={[
-              styles.dropdownMenu,
-              {
-                backgroundColor: theme.cardBackground,
-                borderColor: theme.border,
-                shadowColor: theme.text,
-                top: insets.top + 60,
-              },
-            ]}
-          >
-            {[
-              { id: 'daily', labelEs: 'Log Diario',  labelEn: 'Daily Log', icon: 'today-outline' },
-              { id: 'week',  labelEs: 'Log Semanal', labelEn: 'Week Log',  icon: 'calendar-outline' },
-              { id: 'month', labelEs: 'Log Mensual', labelEn: 'Month Log', icon: 'calendar-number-outline' },
-            ].map((option) => {
-              const isSelected = logMode === option.id;
-              const label = language === 'es' ? option.labelEs : option.labelEn;
-              return (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.dropdownItem,
-                    isSelected && { backgroundColor: theme.primaryBackground || theme.inputBackground },
-                  ]}
-                  onPress={() => {
-                    setLogMode(option.id);
-                    setShowLogModeMenu(false);
-                  }}
-                >
-                  <Ionicons
-                    name={option.icon}
-                    size={20}
-                    color={isSelected ? theme.primary : theme.text}
-                    style={{ marginRight: 12 }}
-                  />
-                  <Text
-                    variant="body"
-                    style={[
-                      styles.dropdownItemText,
-                      { color: isSelected ? theme.primary : theme.text, fontWeight: isSelected ? '700' : '400' },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                  {isSelected && (
-                    <Ionicons
-                      name="checkmark"
-                      size={18}
-                      color={theme.primary}
-                      style={{ marginLeft: 'auto' }}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+        <TouchableWithoutFeedback onPress={() => setShowLogModeMenu(false)}>
+          <View style={styles.dropdownModalOverlay}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[
+                  styles.dropdownMenu,
+                  {
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                    shadowColor: theme.text,
+                    top: insets.top + 60,
+                  },
+                ]}
+              >
+                {[
+                  { id: 'daily', labelEs: 'Log Diario',  labelEn: 'Daily Log', icon: 'today-outline' },
+                  { id: 'week',  labelEs: 'Log Semanal', labelEn: 'Week Log',  icon: 'calendar-outline' },
+                  { id: 'month', labelEs: 'Log Mensual', labelEn: 'Month Log', icon: 'calendar-number-outline' },
+                ].map((option) => {
+                  const isSelected = logMode === option.id;
+                  const label = language === 'es' ? option.labelEs : option.labelEn;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={[
+                        styles.dropdownItem,
+                        isSelected && { backgroundColor: theme.primaryBackground || theme.inputBackground },
+                      ]}
+                      onPress={() => {
+                        setLogMode(option.id);
+                        setShowLogModeMenu(false);
+                      }}
+                    >
+                      <Ionicons
+                        name={option.icon}
+                        size={20}
+                        color={isSelected ? theme.primary : theme.text}
+                        style={{ marginRight: 12 }}
+                      />
+                      <Text
+                        variant="body"
+                        style={[
+                          styles.dropdownItemText,
+                          { color: isSelected ? theme.primary : theme.text, fontWeight: isSelected ? '700' : '400' },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark"
+                          size={18}
+                          color={theme.primary}
+                          style={{ marginLeft: 'auto' }}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* ── Modal de Búsqueda Global ────────────────────────────────────────── */}
@@ -763,11 +763,8 @@ const styles = StyleSheet.create({
   },
   calendarButton: { padding: 4 },
 
-  inlineOverlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  inlineBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+  dropdownModalOverlay: {
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   dropdownMenu: {
