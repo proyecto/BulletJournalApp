@@ -429,6 +429,7 @@ export default function DailyLogScreen({ navigation }) {
         topContent={
           <ScrollView
             horizontal
+            keyboardShouldPersistTaps="always"
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 8, paddingHorizontal: 4, alignItems: 'center' }}
           >

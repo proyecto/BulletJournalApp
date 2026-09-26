@@ -34,16 +34,6 @@ export default function SmartInput({
   const inputRef = useRef(null);
 
   const focusTimerRef = useRef(null);
-  const isInteractingRef = useRef(false);
-
-  const handleInternalTouch = () => {
-    isInteractingRef.current = true;
-    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
-    focusTimerRef.current = setTimeout(() => {
-      isInteractingRef.current = false;
-      inputRef.current?.focus();
-    }, 200);
-  };
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -53,7 +43,6 @@ export default function SmartInput({
     if (focusTimerRef.current) {
       clearTimeout(focusTimerRef.current);
     }
-    isInteractingRef.current = false;
     Keyboard.dismiss();
     setIsOpen(false);
   }, []);
@@ -81,13 +70,12 @@ export default function SmartInput({
       keyboardHasShown = true;
     });
 
-    // Margen de seguridad en caso de que el teclado tarde en responder o no emita evento de apertura
     const safetyTimer = setTimeout(() => {
       keyboardHasShown = true;
     }, 400);
 
     const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      if (keyboardHasShown && !isInteractingRef.current) {
+      if (keyboardHasShown) {
         handleClose();
       }
     });
@@ -176,7 +164,6 @@ export default function SmartInput({
             >
               <TouchableWithoutFeedback>
                 <View
-                  onTouchStart={handleInternalTouch}
                   style={[
                     styles.modalInputCard,
                     {
