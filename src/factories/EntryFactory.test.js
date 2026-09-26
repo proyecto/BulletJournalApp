@@ -35,7 +35,7 @@ describe('EntryFactory', () => {
       const entry = createDailyEntry(text, type, date, timezone);
 
       expect(entry).toEqual({
-        id: '1625097600000',
+        id: expect.any(String),
         text: 'My Daily Task',
         type: 'task',
         status: 'open',
@@ -102,7 +102,7 @@ describe('EntryFactory', () => {
       const entry = createListEntry(text, listId, timezone);
 
       expect(entry).toEqual({
-        id: '1625097600000',
+        id: expect.any(String),
         text: 'Buy milk',
         type: 'task', // should always be task
         status: 'open',
@@ -135,7 +135,7 @@ describe('EntryFactory', () => {
       const list = createList(title, orderIndex);
 
       expect(list).toEqual({
-        id: '1625097600000',
+        id: expect.any(String),
         title: 'Groceries',
         order_index: 2,
       });

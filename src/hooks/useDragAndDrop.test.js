@@ -60,6 +60,9 @@ const cfg = (panResponders, i) => panResponders[i]._config;
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('useDragAndDrop', () => {
+  afterEach(() => {
+    jest.clearAllTimers();
+  });
 
   // ── Estado inicial ──────────────────────────────────────────────────────────
 

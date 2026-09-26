@@ -22,7 +22,12 @@
 // JournalContext → EntryFactory → dateUtils      ✓
 import { getFormattedDate } from '../utils/dateUtils';
 
-const generateId = () => Date.now().toString();
+const generateId = () => {
+  if (typeof globalThis?.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 9);
+};
 
 /**
  * Extrae automáticamente un significador purista (* o !) al inicio del texto si existe.

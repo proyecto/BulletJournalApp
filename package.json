@@ -60,7 +60,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "test": "jest -c tests/jest.config.js",
+    "test": "jest -c tests/jest.config.js --forceExit",
     "test:watch": "jest -c tests/jest.config.js --watch",
     "test:coverage": "jest -c tests/jest.config.js --coverage",
     "build:apk": "JAVA_HOME=/opt/homebrew/opt/openjdk@17 eas build --platform android --profile preview --local --output=punteoapp.apk",
