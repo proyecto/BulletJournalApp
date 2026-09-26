@@ -3,11 +3,11 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import {
   SettingsProvider,
   useSettings,
+  systemLightTheme,
   lightTheme,
   darkTheme,
   sepiaTheme,
   obsidianTheme,
-  thingsTheme,
   nordTheme,
   matchaTheme,
   asanaTheme,
@@ -41,7 +41,7 @@ describe('SettingsContext', () => {
     expect(result.current.language).toBe('es');
     expect(result.current.timezone).toBe('Europe/Madrid');
     expect(result.current.fontFamily).toBe('system');
-    expect(result.current.theme).toEqual(lightTheme);
+    expect(result.current.theme).toEqual(systemLightTheme);
     expect(result.current.isDark).toBe(false);
   });
 
@@ -63,7 +63,7 @@ describe('SettingsContext', () => {
     expect(saved.themePreference).toBe('dark');
   });
 
-  it('switches correctly to artistic themes (sepia, obsidian, things, nord, matcha)', async () => {
+  it('switches correctly to artistic themes (sepia, obsidian, light, nord, matcha)', async () => {
     const wrapper = ({ children }) => <SettingsProvider>{children}</SettingsProvider>;
     const { result } = await renderHook(() => useSettings(), { wrapper });
 
@@ -87,14 +87,13 @@ describe('SettingsContext', () => {
     expect(result.current.isDark).toBe(true);
     expect(result.current.fontFamily).toBe('jetbrains');
 
-    // 3. Things Indigo
+    // 3. Monocromo (B&W)
     await act(async () => {
-      result.current.setThemePreference('things');
+      result.current.setThemePreference('light');
     });
-    expect(result.current.themePreference).toBe('things');
-    expect(result.current.theme).toEqual(thingsTheme);
+    expect(result.current.themePreference).toBe('light');
+    expect(result.current.theme).toEqual(lightTheme);
     expect(result.current.isDark).toBe(false);
-    expect(result.current.fontFamily).toBe('inter');
 
     // 4. Arctic Nord
     await act(async () => {

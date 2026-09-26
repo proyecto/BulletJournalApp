@@ -20,11 +20,11 @@ import * as SystemUI from 'expo-system-ui';
 import * as SettingsRepository from '../repositories/SettingsRepository';
 import { loadFontFamily } from '../services/FontLoader';
 import {
+  systemLightTheme,
   lightTheme,
   darkTheme,
   sepiaTheme,
   obsidianTheme,
-  thingsTheme,
   nordTheme,
   matchaTheme,
   asanaTheme,
@@ -37,11 +37,11 @@ import {
 
 // ─── Re-exportación de Temas ─────────────────────────────────────────────────
 export {
+  systemLightTheme,
   lightTheme,
   darkTheme,
   sepiaTheme,
   obsidianTheme,
-  thingsTheme,
   nordTheme,
   matchaTheme,
   asanaTheme,
@@ -263,9 +263,9 @@ export function SettingsProvider({ children }) {
 
   const activeTheme = useMemo(() => {
     if (themePreference === 'system') {
-      return systemColorScheme === 'dark' ? darkTheme : lightTheme;
+      return systemColorScheme === 'dark' ? darkTheme : systemLightTheme;
     }
-    return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : lightTheme);
+    return THEMES_MAP[themePreference] || (themePreference === 'dark' ? darkTheme : systemLightTheme);
   }, [themePreference, systemColorScheme]);
 
   // ── Sincronizar Fondo de Raíz de Android y Botones ───────────────────────
