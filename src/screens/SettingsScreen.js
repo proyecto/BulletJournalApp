@@ -552,7 +552,7 @@ export default function SettingsScreen({ navigation }) {
 
         <View style={styles.versionContainer}>
           <Text variant="caption" style={[styles.versionText, { color: theme.textSecondary }]}>
-            Punteo v2.0.2 (Build 11)
+            Punteo v2.0.3 (Build 12)
           </Text>
         </View>
       </ScrollView>

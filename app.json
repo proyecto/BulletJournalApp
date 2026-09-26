@@ -2,7 +2,7 @@
   "expo": {
     "name": "Punteo",
     "slug": "BulletJournalApp",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.rafael.punteo",
-      "versionCode": 11,
+      "versionCode": 12,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
